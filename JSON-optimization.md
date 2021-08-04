@@ -19,9 +19,9 @@ Connect to the database to confirm it loaded successfully
 
 ```bash
 # download data files
-wget https://raw.githubusercontent.com/cockroachlabs/developer-success/master/CC-FreeTier/data/json-opt/json1.sql
-wget https://raw.githubusercontent.com/cockroachlabs/developer-success/master/CC-FreeTier/data/json-opt/json2.sql
-wget https://raw.githubusercontent.com/cockroachlabs/developer-success/master/CC-FreeTier/data/json-opt/json3.sql
+wget https://raw.githubusercontent.com/cockroachlabs/developer-success/main/data/json-opt/json1.sql
+wget https://raw.githubusercontent.com/cockroachlabs/developer-success/main/data/json-opt/json2.sql
+wget https://raw.githubusercontent.com/cockroachlabs/developer-success/main/data/json-opt/json3.sql
 
 # load just the first file into the database
 cockroach sql --url "postgresql://<yourname>:<password>@[...]" < json1.sql
