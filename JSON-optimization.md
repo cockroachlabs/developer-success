@@ -1,4 +1,4 @@
-# JSON Optimization - Cockroach Cloud Free Tier
+# JSON Optimization
 
 ## Overview
 
