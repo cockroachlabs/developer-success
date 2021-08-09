@@ -40,6 +40,8 @@ $ cockroach userfile upload employees.csv --url "postgresql://<yourname>:<passwo
 successfully uploaded to userfile://defaultdb.public.userfiles_jon/
 ```
 
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
+
 The `userfile` path is returned after the file is successfully uploaded. The `userfile` is stored in a per-user space. In this example, the username was `jon` so the path includes it in the path.
 
 To view all of the userfiles that you have uploaded, you can run the following command:
@@ -86,6 +88,8 @@ $ cockroach userfile upload rooms.csv --url "postgresql://<yourname>:<password>@
 # verify that files have been uploaded
 $ cockroach userfile list --url "postgresql://<yourname>:<password>@[...]"
 ```
+
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 After the files have been uploaded, connect to your cluster using the command-line `cockroach sql` command so that we can import the CSVs into a database table.
 
@@ -268,6 +272,8 @@ Using the `cockroach userfile upload` command, upload the dumps to your cluster:
 $ cockroach userfile upload workplace_pg.sql --url "postgresql://<yourname>:<password>@[...]"
 $ cockroach userfile upload employees_pg.sql --url "postgresql://<yourname>:<password>@[...]"
 ```
+
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 Next, verify that the files have been successfully upload.
 
@@ -513,6 +519,8 @@ $ cockroach userfile upload workplace_mysql.sql --url "postgresql://<yourname>:<
 $ cockroach userfile upload employees_mysql.sql --url "postgresql://<yourname>:<password>@[...]"
 ```
 
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
+
 Next, verify that the files have been successfully upload.
 
 ```bash
@@ -653,6 +661,8 @@ To do a full cluster backup, first login to your cluster.
 $ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
 ```
 
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
+
 Once you are connected to your cluster, issue the following SQL which will create a backup called `full-backup` in `userfiles`.
 
 ```sql
@@ -755,6 +765,8 @@ workplace-backup/2021/08/09-175343.68/BACKUP_MANIFEST-CHECKSUM
 workplace-backup/2021/08/09-175343.68/data/683085785954395921.sst
 workplace-backup/2021/08/09-175343.68/data/683085785954428689.sst
 ```
+
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 This list shows that I have 2 `employees` table backups, 2 `workplace` database backups and 1 full cluster backup.
 
