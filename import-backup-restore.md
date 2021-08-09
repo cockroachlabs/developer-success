@@ -638,22 +638,22 @@ Time: 828ms
 Nice work! We were able to re-import just the `employees_mysql` table.
 
 
----
-WORK IN PROGRESS BELOW THIS LINE
+## Lab 5 - Backup and Restore Data on a Single Cluster
 
----
+Cockroach Cloud Free Tier automatically backs up all clusters but those backups are not currently available via the cluster console. However, you can create manual database and table backups to `userfiles` that can be used to restore database and table data. Although Cockroach Cloud Free Tier supports manual full cluster backups to `userfiles`, those imports can only be imported into CockroachDB self-hosted or Cockroach Cloud non-free tier.
 
-
-
-
-
-## Lab 4 - Backup and Restore Data on a Single Cluster
-
-Cockroach Cloud Free Tier automatically backs up all clusters but those backups are not currently available via the cluster console. However, you can create manual full backups to `userfiles` that can be used to restore data.
+To learn more about `userfiles`, review Lab 1 of this workshops that focuses on how to manage `userfiles`.
 
 https://www.cockroachlabs.com/docs/cockroachcloud/free-faqs.html#can-i-backup-my-cockroachcloud-free-beta-cluster-does-cockroach-labs-take-backups-of-my-cluster
 
-Full cluster:
+To do a full cluster backup, first login to your cluster.
+
+```bash
+# connect to the CockroachDB cluster
+$ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
+```
+
+Once you are connected to your cluster, issue the following SQL which will create a backup called `full-backup` in `userfiles`.
 
 ```sql
 > BACKUP INTO 'userfile://defaultdb.public.userfiles_$user/full-backup' AS OF  SYSTEM TIME '-10s';
@@ -666,7 +666,13 @@ Full cluster:
 Time: 24.588s
 ```
 
-Database:
+On your local machine, you can use the following command to download the full backup.
+
+```bash
+$ cockroach userfile get full-backup --url "postgresql://<yourname>:<password>@[...]"
+```
+
+To backup a single database rather than the full cluster, you can re-connect to your cluster and execute the following command.
 
 ```sql
 > BACKUP DATABASE workplace INTO 'userfile://defaultdb.public.userfiles_jon/workplace-backup' AS OF  SYSTEM TIME '-10s';
@@ -678,7 +684,7 @@ Database:
 Time: 12.407s
 ```
 
-Individual table:
+Additionally, you can backupk a single table using the following command.
 
 ```sql
 > BACKUP workplace.employees INTO 'userfile://defaultdb.public.userfiles_jon/employees-backup' AS OF  SYSTEM TIME '-10s';
@@ -690,6 +696,137 @@ Individual table:
 Time: 11.902s
 ```
 
-## Lab 5 - Migrate Data to a Different Cluster
+## Lab 5 - Restoring Data to a Running Cluster
 
-<!--  -->
+In this lab, you will restore previously backed-up data to a running cluster. Cockroach Cloud Free Tier currently supports restoring data from both database and table backups.
+
+First, identify the backup you would like to restore. In Lab 4, you used the `AS OF SYSTEM TIME` option. This creates a backup with a specific timestamp. To find the backup, get a list of `userfiles`.
+
+```bash
+$ cockroach userfile list --url "postgresql://<yourname>:<password>@[...]"
+
+employees-backup/2021/08/05-223949.67/BACKUP-CHECKPOINT-682009558332090129-CHECKSUM
+employees-backup/2021/08/05-223949.67/BACKUP-CHECKPOINT-CHECKSUM
+employees-backup/2021/08/05-223949.67/BACKUP-STATISTICS
+employees-backup/2021/08/05-223949.67/BACKUP_MANIFEST
+employees-backup/2021/08/05-223949.67/BACKUP_MANIFEST-CHECKSUM
+employees-backup/2021/08/05-223949.67/data/682009573653030673.sst
+employees-backup/2021/08/09-175151.88/BACKUP-CHECKPOINT-683085404549359377-CHECKSUM
+employees-backup/2021/08/09-175151.88/BACKUP-CHECKPOINT-CHECKSUM
+employees-backup/2021/08/09-175151.88/BACKUP-STATISTICS
+employees-backup/2021/08/09-175151.88/BACKUP_MANIFEST
+employees-backup/2021/08/09-175151.88/BACKUP_MANIFEST-CHECKSUM
+employees-backup/2021/08/09-175151.88/data/683085420552431377.sst
+full-backup/2021/08/09-175623.91/BACKUP-CHECKPOINT
+full-backup/2021/08/09-175623.91/BACKUP-CHECKPOINT-683086295814416145-CHECKSUM
+full-backup/2021/08/09-175623.91/BACKUP-CHECKPOINT-CHECKSUM
+full-backup/2021/08/09-175623.91/data/683086311490823953.sst
+full-backup/2021/08/09-175623.91/data/683086311490922257.sst
+full-backup/2021/08/09-175623.91/data/683086311491446545.sst
+full-backup/2021/08/09-175623.91/data/683086311492462353.sst
+full-backup/2021/08/09-175623.91/data/683086311500097297.sst
+full-backup/2021/08/09-175623.91/data/683086328509802257.sst
+full-backup/2021/08/09-175623.91/data/683086328511309585.sst
+full-backup/2021/08/09-175623.91/data/683086328512685841.sst
+full-backup/2021/08/09-175623.91/data/683086328531199761.sst
+full-backup/2021/08/09-175623.91/data/683086328832829201.sst
+full-backup/2021/08/09-175623.91/data/683086336381724433.sst
+full-backup/2021/08/09-175623.91/data/683086341627225873.sst
+full-backup/2021/08/09-175623.91/data/683086341926332177.sst
+full-backup/2021/08/09-175623.91/data/683086343249110801.sst
+full-backup/2021/08/09-175623.91/data/683086343250126609.sst
+full-backup/2021/08/09-175623.91/data/683086349465298705.sst
+full-backup/2021/08/09-175623.91/data/683086359236323089.sst
+full-backup/2021/08/09-175623.91/data/683086370109237009.sst
+full-backup/2021/08/09-175623.91/data/683086370109269777.sst
+full-backup/2021/08/09-175623.91/data/683086370109466385.sst
+workplace-backup/2021/08/05-224110.23/BACKUP-CHECKPOINT-682009822370211601-CHECKSUM
+workplace-backup/2021/08/05-224110.23/BACKUP-CHECKPOINT-CHECKSUM
+workplace-backup/2021/08/05-224110.23/BACKUP-STATISTICS
+workplace-backup/2021/08/05-224110.23/BACKUP_MANIFEST
+workplace-backup/2021/08/05-224110.23/BACKUP_MANIFEST-CHECKSUM
+workplace-backup/2021/08/05-224110.23/data/682009837124003601.sst
+workplace-backup/2021/08/05-224110.23/data/682009837124036369.sst
+workplace-backup/2021/08/09-175343.68/BACKUP-CHECKPOINT-683085770857555729-CHECKSUM
+workplace-backup/2021/08/09-175343.68/BACKUP-CHECKPOINT-CHECKSUM
+workplace-backup/2021/08/09-175343.68/BACKUP-STATISTICS
+workplace-backup/2021/08/09-175343.68/BACKUP_MANIFEST
+workplace-backup/2021/08/09-175343.68/BACKUP_MANIFEST-CHECKSUM
+workplace-backup/2021/08/09-175343.68/data/683085785954395921.sst
+workplace-backup/2021/08/09-175343.68/data/683085785954428689.sst
+```
+
+This list shows that I have 2 `employees` table backups, 2 `workplace` database backups and 1 full cluster backup.
+
+Let's start by restoring the `employee` table. Login to your cluster.
+
+```bash
+$ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
+```
+
+And drop the `employees` table in the `workplace` database.
+
+```sql
+> USE workplace;
+> DROP TABLE employees;
+DROP TABLE
+
+Time: 350ms
+```
+
+Then run the `RESTORE` command on the latest backup.
+
+```sql
+> RESTORE TABLE workplace.employees FROM 'userfile:///employees-backup//2021/08/09-175151.88';
+        job_id       |  status   | fraction_completed | rows | index_entries | bytes
+---------------------+-----------+--------------------+------+---------------+--------
+  683091868975376145 | succeeded |                  1 |  100 |             0 |  4275
+(1 row)
+
+Time: 880ms
+```
+
+Nice work! The `employees` table has been successfully restored.
+
+Next, change databases so the `workplace` database is not active and drop the entire `workplace` database. You will also need to disable `sql_safe_updates`.
+
+```sql
+> USE defaultdb;
+SET
+
+Time: 57ms
+
+> SET sql_safe_updates=false;
+SET
+
+Time: 57ms
+
+> DROP DATABASE workplace;
+DROP DATABASE
+
+Time: 438ms
+
+> SET sql_safe_updates=true;
+SET
+
+Time: 59ms
+
+```
+
+Next, restore the full database.
+
+```sql
+> RESTORE DATABASE workplace FROM 'userfile:///workplace-backup/2021/08/09-175343.68';
+
+        job_id       |  status   | fraction_completed | rows | index_entries | bytes
+---------------------+-----------+--------------------+------+---------------+--------
+  683092806126282513 | succeeded |                  1 |  200 |             0 |  8550
+(1 row)
+
+Time: 1.054s
+```
+
+Congratulations! You have just successfully restored a full database backup.
+
+## Lab 6 - Migrate Free-Tier Data to a Non-Free Tier Cluster
+
