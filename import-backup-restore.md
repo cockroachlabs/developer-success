@@ -1,4 +1,4 @@
-# Import/Backup/Restore - Cockroach Cloud Free Tier
+# Import, Backup, and Restore
 
 ## Overview
 

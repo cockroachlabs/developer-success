@@ -6,3 +6,4 @@
 - [CDC Changefeed](CDC-AVRO.md)
 - [JSON Optimization](JSON-optimization.md)
 - [Topology Patterns](topology-patterns.md)
+- [Import, Backup, and Restore](import-backup-restore.md)
