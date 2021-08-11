@@ -160,7 +160,7 @@ In this lab, we'll demonstrate how data can be imported from a Postgresql data d
 
 Note: if you would like to skip creating a docker container and doing the dump in Postgresql, you can skip this section and use the full database dump `workplace_pg.sql` and the single table dump `employees_pg.sql` found in the `data/import-backup-restore` folder.
 
-Let's start a docker instance and copy the employee CSV data to it:
+Let's start a docker instance and copy the employee CSV data to it.
 
 ```bash
 # Run a postgresql container
@@ -171,18 +171,22 @@ $ docker cp employees.csv import-postgres:/employees.csv
 $ docker cp rooms.csv import-postgres:/rooms.csv
 ```
 
-and connect to it:
+Next, connect to the running docker container.
+
 ```bash
 # Get shell in container
 $ docker exec -it import-postgres /bin/bash
 ```
 
-You should now see a command-prompt that is in the PostgreSQL container. To connect to the database:
+You should now see a command prompt that is in the PostgreSQL container. In the workshops, the `$$` prompt will be used to denote a command prompt in a docker container.
+
+Use the `psql` command to connect to the dataase.
+
 ```bash
 $$ psql -U postgres
 ```
 
-Next, import the CSV data into a new PostgreSQL database and table:
+Next, import the CSV data into a new PostgreSQL database and table. This will provide us with data that we can use for a Postgresql data dump.
 
 ```sql
 -- Create the database
@@ -247,19 +251,19 @@ Exit out of Postgresql.
 PGSQL> \q
 ```
 
-At the shell prompt in the PostgreSQL container, dump the full database using `pg_dump`:
+At the shell prompt in the PostgreSQL container, dump the full database using `pg_dump`.
 
 ```bash
 $$ pg_dump -U postgres workplace_pg > /workplace_pg.sql
 ```
 
-In addition to the full database, we'll also dump the database table so that we can demonstrate importing either the full database or an individual table:
+In addition to the full database, we'll also dump a database table so that we can demonstrate importing both the full database and an individual table.
 
 ```bash
 $$ pg_dump -U postgres -t employees_pg workplace_pg > /employees_pg.sql
 ```
 
-Exit out of the Postgresql container and copy the dumps from the docker container to your computer:
+Exit out of the Postgresql container and copy the files that `pg_dump` created from the docker container to your computer.
 
 ```bash
 $$ exit
@@ -267,7 +271,9 @@ $ docker cp import-postgres:/workplace_pg.sql .
 $ docker cp import-postgres:/employees_pg.sql .
 ```
 
-Using the `cockroach userfile upload` command, upload the dumps to your cluster:
+Using the `cockroach userfile upload` command, upload the dumps to your cluster.
+
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 ```bash
 # upload pg_dump
@@ -275,9 +281,7 @@ $ cockroach userfile upload workplace_pg.sql --url "postgresql://<yourname>:<pas
 $ cockroach userfile upload employees_pg.sql --url "postgresql://<yourname>:<password>@[...]"
 ```
 
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
-
-Next, verify that the files have been successfully upload.
+Next, verify that the files have been successfully uploaded.
 
 ```bash
 # verify that file has been uploaded
@@ -291,7 +295,7 @@ Connect to your cluster to perform the import.
 $ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
 ```
 
-To import the `workplace` database, we must first create the database.
+To import the `workplace` database, including its tables and data, we must first create the database.
 
 ```sql
 > CREATE DATABASE workplace_pg;
@@ -354,6 +358,8 @@ Time: 750ms
 Time: 70ms
 ```
 
+Great work! You have successfully imported the full database.
+
 Next, let's look at importing just a single table.
 
 Drop the `employees_pg` table and then import from the single table dump:
@@ -399,7 +405,7 @@ Time: 520ms
 (10 rows)
 ```
 
-Nice work! We were able to re-import just the `employees_pg` table.
+Nice work! You were able to re-import just the `employees_pg` table.
 
 ## Lab 4 - Import Data from MySQL
 
@@ -409,7 +415,7 @@ In this lab, we'll demonstrate how data can be imported from a MySQL data dump.
 
 Note: if you would like to skip creating a docker container and doing the dump in MySQL, you can skip this section and use the full database dump `workplace_mysql.sql` and the single table dump `employees_mysql.sql` found in the `data/import-backup-restore` folder.
 
-Let's start a docker instance and copy the CSV data to it:
+Let's start a docker instance and copy the CSV data to it.
 
 ```bash
 # Run a mysql container
@@ -426,7 +432,8 @@ and connect to it:
 $ docker exec -it import-mysql /bin/bash
 ```
 
-You should now see a command-prompt that is in the MySQL container. To connect to the database:
+You should now see a command prompt that is in the MySQL container. To connect to the database. Like in the previous lab, the `$$` prompt will indicate that the command is running in the docker container.
+
 ```bash
 $$ mysql -u root -ptest1234
 ```
@@ -493,19 +500,19 @@ Exit out of MySQL.
 MYSQL> exit;
 ```
 
-At the shell prompt in the MySQL container, dump the full database using `mysql_dump`.
+At the shell prompt in the MySQL docker container, dump the full database using `mysql_dump`.
 
 ```bash
 $$ mysqldump -u root -ptest1234 workplace_mysql > workplace_mysql.sql
 ```
 
-In addition to the full database, we'll also dump the database table so that we can demonstrate importing either the full database or an individual table:
+In addition to the full database, we'll also dump the database table so that we can demonstrate importing either the full database or an individual table.
 
 ```bash
 $$ mysqldump -u root -ptest1234 workplace_mysql employees_mysql > employees_mysql.sql
 ```
 
-Exit out of the MySQL container and copy the dumps from the docker container to your computer:
+Exit out of the MySQL container and copy the dumps from the docker container to your computer.
 
 ```bash
 $$ exit
@@ -513,7 +520,9 @@ $ docker cp import-mysql:/workplace_mysql.sql .
 $ docker cp import-mysql:/employees_mysql.sql .
 ```
 
-Using the `cockroach userfile upload` command, upload the dumps to your cluster:
+Using the `cockroach userfile upload` command, upload the dumps to your cluster.
+
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 ```bash
 # upload mysql dump
@@ -521,9 +530,7 @@ $ cockroach userfile upload workplace_mysql.sql --url "postgresql://<yourname>:<
 $ cockroach userfile upload employees_mysql.sql --url "postgresql://<yourname>:<password>@[...]"
 ```
 
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
-
-Next, verify that the files have been successfully upload.
+Next, verify that the files have been successfully uploaded.
 
 ```bash
 # verify that file has been uploaded
@@ -602,7 +609,7 @@ Time: 70ms
 
 Next, let's look at importing just a single table.
 
-Drop the `employees_mysql` table and then import from the single table dump:
+Drop the `employees_mysql` table and then import from the single table dump.
 
 ```sql
 > DROP TABLE employees_mysql;
@@ -650,20 +657,20 @@ Nice work! We were able to re-import just the `employees_mysql` table.
 
 ## Lab 5 - Backup and Restore Data on a Single Cluster
 
-Cockroach Cloud Free Tier automatically backs up all clusters but those backups are not currently available via the cluster console. However, you can create manual database and table backups to `userfiles` that can be used to restore database and table data. Although Cockroach Cloud Free Tier supports manual full cluster backups to `userfiles`, those imports can only be imported into CockroachDB self-hosted or Cockroach Cloud non-free tier.
+Cockroach Cloud Free Tier automatically backs up all clusters but those backups are not currently available via the cluster console. However, you can create manual database and table backups to `userfiles` that can be used to restore database and table data. 
+
+Although Cockroach Cloud Free Tier supports manual full cluster backups to `userfiles`, those imports can only be imported into CockroachDB self-hosted.
 
 To learn more about `userfiles`, review Lab 1 of this workshops that focuses on how to manage `userfiles`.
 
-https://www.cockroachlabs.com/docs/cockroachcloud/free-faqs.html#can-i-backup-my-cockroachcloud-free-beta-cluster-does-cockroach-labs-take-backups-of-my-cluster
-
 To do a full cluster backup, first login to your cluster.
+
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 ```bash
 # connect to the CockroachDB cluster
 $ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
 ```
-
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 Once you are connected to your cluster, issue the following SQL which will create a backup called `full-backup` in `userfiles`.
 
@@ -696,7 +703,7 @@ To backup a single database rather than the full cluster, you can re-connect to 
 Time: 12.407s
 ```
 
-Additionally, you can backupk a single table using the following command.
+Additionally, you can backup a single table using the following command.
 
 ```sql
 > BACKUP workplace.employees INTO 'userfile://defaultdb.public.userfiles_jon/employees-backup' AS OF  SYSTEM TIME '-10s';
@@ -713,6 +720,8 @@ Time: 11.902s
 In this lab, you will restore previously backed-up data to a running cluster. Cockroach Cloud Free Tier currently supports restoring data from both database and table backups.
 
 First, identify the backup you would like to restore. In Lab 4, you used the `AS OF SYSTEM TIME` option. This creates a backup with a specific timestamp. To find the backup, get a list of `userfiles`.
+
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 ```bash
 $ cockroach userfile list --url "postgresql://<yourname>:<password>@[...]"
@@ -767,8 +776,6 @@ workplace-backup/2021/08/09-175343.68/BACKUP_MANIFEST-CHECKSUM
 workplace-backup/2021/08/09-175343.68/data/683085785954395921.sst
 workplace-backup/2021/08/09-175343.68/data/683085785954428689.sst
 ```
-
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 This list shows that I have 2 `employees` table backups, 2 `workplace` database backups and 1 full cluster backup.
 
