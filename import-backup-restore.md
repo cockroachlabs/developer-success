@@ -74,11 +74,13 @@ These are all of the commands that you will need to know to leverage `userfiles`
 
 ## Lab 2 - Import Data from CSV
 
-In this lab, we will look at how to import data from comma-separated value (CSV) files. To accomplish this, you will import two existing CSV files that has been provided for this workshop. The employee CSV contains records for 100 employees, including their employee number, birth date, first name, last name, gender and hire date. The rooms CSV contains records for conference rooms, including the room number, name and capacity.
+In this lab, we will look at how to import data from comma-separated value (CSV) files. To accomplish this, you will import two existing CSV files that has been provided for this workshop. The `employee.csv` file contains records for 100 employees, including their employee number, birth date, first name, last name, gender and hire date. The `rooms.csv` file contains records for conference rooms, including the room number, name and capacity.
 
 First, download the `employees.csv` and `rooms.csv` files from the `data/import-backup-restore` directory.
 
-Next, upload the CSV files to your Cockroach Cloud cluster as `userfiles`. As described in the first lab, a `userfile` is stored in user-specific file space on the cluster.
+Next, upload the CSV files to your Cockroach Cloud cluster as `userfiles`.
+
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 ```bash
 # upload data files to cluster
@@ -89,22 +91,22 @@ $ cockroach userfile upload rooms.csv --url "postgresql://<yourname>:<password>@
 $ cockroach userfile list --url "postgresql://<yourname>:<password>@[...]"
 ```
 
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
-
-After the files have been uploaded, connect to your cluster using the command-line `cockroach sql` command so that we can import the CSVs into a database table.
+After the files have been uploaded, connect to your cluster using the command-line `cockroach sql` command so that you can import the CSVs into a database table.
 
 ```bash
 # connect to the CockroachDB cluster
 $ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
 ```
 
-Once you are connect to the cluster via the SQL client, you can create a database for storing the imported tables called `workplace_csv`.
+Once you are connected to the cluster via the SQL client, you can create a database for storing the imported tables called `workplace_csv`.
 
 ```sql
 > CREATE DATABASE workplace_csv;
 ```
 
 Next, switch to the `workplace_csv` database and run the `IMPORT TABLE` command. To import data from the CSV files, the table schema must be defined to match the number of columns in the CSV file.
+
+Make sure to replace `$user` with the username that you are using to connect to your cluster.
 
 ```sql
 > USE workplace_csv;
@@ -839,53 +841,3 @@ Time: 1.054s
 ```
 
 Congratulations! You have just successfully restored a full database backup.
-
-## Lab 6 - Migrate Free-Tier Data to a Non-Free Tier Cluster
-
-
-### Backup the cluster to userfile
-
-To do a full cluster backup, first login to your cluster.
-
-```bash
-# connect to the CockroachDB cluster
-$ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
-```
-
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
-
-Once you are connected to your cluster, issue the following SQL which will create a backup called `full-backup` in `userfiles`.
-
-```sql
-> BACKUP INTO 'userfile://defaultdb.public.userfiles_$user/full-backup' AS OF  SYSTEM TIME '-10s';
-
-        job_id       |  status   | fraction_completed | rows  | index_entries |  bytes
----------------------+-----------+--------------------+-------+---------------+-----------
-  682009176526923537 | succeeded |                  1 | 11204 |          1055 | 19883414
-(1 row)
-
-Time: 24.588s
-```
-
-
-### Download userfile
-
-Next, on your local machine, download the `userfile` using the following command.
-
-```bash
-# change directories
-$ cockroach userfile get full-backup --url "postgresql://<yourname>:<password>@[...]"
-downloaded full-backup to full-backup
-```
-
-
-### Upload userfile to s3
-
-See: https://docs.aws.amazon.com/AmazonS3/latest/userguide/upload-objects.html
-
-
-### Restore to non-free cluster from s3
-
-```sql
-> RESTORE FROM 's3://{BUCKET NAME}/{path/to/backup/subdirectory}?AWS_ACCESS_KEY_ID={KEY ID}&AWS_SECRET_ACCESS_KEY={SECRET ACCESS KEY}';
-```
