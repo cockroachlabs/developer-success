@@ -2,11 +2,11 @@
 
 ## Overview
 
-Cockroach Cloud supports a wide range of import, backup and restore options. The Cockroach Cloud free tier provides a subset of the overall options but still enables you to do many of the operations that you need.
+Cockroach Cloud supports a wide range of import, backup and restore options, of which a subset is available in the Cockroach Cloud free tier.
 
-To explore these options, you can use user-specific cluster file storage, called `userfiles`, to do import, backup and restore.
+To explore this subset of options, you can use user-specific cluster file storage, called `userfiles`, to do import, backup and restore.
 
-In these labs, you will learn how to import data from CSV files, Postgresql and MySQL leveraging `userfiles` into your Cockroach Cloud free tier cluster. You will also learn how to backup and restore an entire cluster, a database or a single table. 
+In these labs, you will learn how to manage `userfiles` and leverage `userfiles` to import data from CSV files, Postgresql and MySQL. You will also learn how to backup and restore an entire cluster, a database and a single table. 
 
 ## Labs Prerequisites
 
@@ -19,7 +19,7 @@ In these labs, you will learn how to import data from CSV files, Postgresql and 
 
 3. Optional:
 
-    - [Docker Desktop](https://www.docker.com/products/docker-desktop). We will use Docker Desktop to create Postgresql and MySQL database dumps. If you prefer, you can use existing database dumps provided in the workshops data directory.
+    - [Docker Desktop](https://www.docker.com/products/docker-desktop). You will use Docker Desktop to create Postgresql and MySQL database dumps. If you prefer, you can use existing database dumps provided in the workshops data directory.
 
 ## Lab 1 - Managing Cluster File Storage
 
@@ -32,7 +32,9 @@ Before getting started with the import, backup and restore labs, you will want t
 
 To try out these commands, download the `employees.csv` file from the `data/import-backup-restore` directory. You will use this `userfile` in the next lab when you explore importing data from CSV.
 
-After downloading the `employees.csv` file to your local machine, upload it into your cluster with the following command. Note that you can exclude the database name in the `--url` parameter since it does not affect where the `userfile` is stored.
+After downloading the `employees.csv` file to your local machine using your browser or a command-line utility such as `wget`, upload it into your cluster with the following command. When working with `userfiles`, you can exclude the database name in the `--url` parameter since `userfiles` are always stored in the `defaultdb` database.
+
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
 
 ```bash
 # upload data file to cluster
@@ -40,11 +42,9 @@ $ cockroach userfile upload employees.csv --url "postgresql://<yourname>:<passwo
 successfully uploaded to userfile://defaultdb.public.userfiles_jon/
 ```
 
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
+Note that the username that you used to connect to your cluster will be included in the full `userfile` path. In this case, the username used to upload the file is `jon` which is contained in the path. In some of the examples below, `$user` will be used in the path to indicate the username that you used to connect to your cluster. You may need to replace this with your actual username.
 
-The `userfile` path is returned after the file is successfully uploaded. The `userfile` is stored in a per-user space. In this example, the username was `jon` so the path includes it in the path.
-
-To view all of the userfiles that you have uploaded, you can run the following command:
+To view all of the userfiles that exist in your cluster, run the following command:
 
 ```bash
 # list data files in cluster
@@ -842,3 +842,50 @@ Congratulations! You have just successfully restored a full database backup.
 
 ## Lab 6 - Migrate Free-Tier Data to a Non-Free Tier Cluster
 
+
+### Backup the cluster to userfile
+
+To do a full cluster backup, first login to your cluster.
+
+```bash
+# connect to the CockroachDB cluster
+$ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
+```
+
+> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
+
+Once you are connected to your cluster, issue the following SQL which will create a backup called `full-backup` in `userfiles`.
+
+```sql
+> BACKUP INTO 'userfile://defaultdb.public.userfiles_$user/full-backup' AS OF  SYSTEM TIME '-10s';
+
+        job_id       |  status   | fraction_completed | rows  | index_entries |  bytes
+---------------------+-----------+--------------------+-------+---------------+-----------
+  682009176526923537 | succeeded |                  1 | 11204 |          1055 | 19883414
+(1 row)
+
+Time: 24.588s
+```
+
+
+### Download userfile
+
+Next, on your local machine, download the `userfile` using the following command.
+
+```bash
+# change directories
+$ cockroach userfile get full-backup --url "postgresql://<yourname>:<password>@[...]"
+downloaded full-backup to full-backup
+```
+
+
+### Upload userfile to s3
+
+See: https://docs.aws.amazon.com/AmazonS3/latest/userguide/upload-objects.html
+
+
+### Restore to non-free cluster from s3
+
+```sql
+> RESTORE FROM 's3://{BUCKET NAME}/{path/to/backup/subdirectory}?AWS_ACCESS_KEY_ID={KEY ID}&AWS_SECRET_ACCESS_KEY={SECRET ACCESS KEY}';
+```
