@@ -35,12 +35,12 @@ Once logged in, click the Create Cluster option and you will be brought to the f
 
 Let's review the different options:
 
-1. **Choosing a plan**: We want to choose Cockroach Cloud Free. We'll cover dedicated Cockroach Cloud in anothoer Tutorial.
-2. **Cloud provider**: Here you can choose which public cloud provider will host your COckroach Cloud Free Tier cluster. We'll choose Google Cloud for the purposes of this Lab.
+1. **Choosing a plan**: We want to choose Cockroach Cloud Free. We'll cover dedicated Cockroach Cloud in another Tutorial.
+2. **Cloud provider**: Here you can choose which public cloud provider will host your Cockroach Cloud Free Tier cluster. We'll choose Google Cloud for the purposes of this Lab.
 3. **Region**: Different cloud providers offer multiple regions that you can host your machines in. The consideration you want to make here is where you plan to host your application that will use the cluster. Let's say our application is geographically in the Central US, therefore we'll choose the default option of Iowa. As a rule of thumb, we'll want our application to be as close to the cluster as possible so there's minimal latency for our requests to the database.
 4. **Cluster name**: This one is up to you. You could use your first name or the name of the application if you'd like to.
 
-After you've chosen your cluster configuration, click `Create your free cluster` shown on the right side.
+After you've chosen your cluster configuration, click `Create your free cluster` shown on the right.
 
 Your cluster will take about 20-30 seconds to be created and once it is ready you will be presented with information about how to connect.
 
@@ -62,7 +62,7 @@ You will be presented with the following prompt:
 
 I'll break down each step here so you know exactly what the command is doing. Note that each step is asking us to paste something into our terminal and to hit enter.
 
-1. This step is telling us how to Download the CockroachDB Client. It will download the client for us, unzip it, and make sure the client is available for you to run from anywhere on your machine. This simplifies things as you won't have to rememmber where you put the Client program.
+1. This step is telling us how to Download the CockroachDB Client. It will download the client for us, unzip it, and make sure the client is available for you to run from anywhere on your machine. This simplifies things as you won't have to remember where you put the Client program.
 
     Paste the following into your terminal:
 
@@ -70,7 +70,7 @@ I'll break down each step here so you know exactly what the command is doing. No
     curl https://binaries.cockroachdb.com/cockroach-v21.1.5.darwin-10.9-amd64.tgz | tar -xz; sudo cp -i cockroach-v21.1.5.darwin-10.9-amd64/cockroach /usr/local/bin/
     ```
 
-2. This command is doing two things. It will download a root certificate and put it in a pre-determined diretory so you know where it is. When we connect to our cluster, we'll have to tell the connect command to look in that pre-determined directory. This certificate allows us to verify your identity when connecting to the cluster.
+2. This command is doing two things. It will download a root certificate and put it in a pre-determined directory so you know where it is. When we connect to our cluster, we'll have to tell the connect command to look in that pre-determined directory. This certificate allows us to verify your identity when connecting to the cluster.
 
     Paste the following into your terminal:
 
