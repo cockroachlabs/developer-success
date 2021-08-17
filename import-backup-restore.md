@@ -694,7 +694,7 @@ $ cockroach userfile get full-backup --url "postgresql://<yourname>:<password>@[
 To backup a single database rather than the full cluster, you can re-connect to your cluster and execute the following command.
 
 ```sql
-> BACKUP DATABASE workplace INTO 'userfile://defaultdb.public.userfiles_jon/workplace-backup' AS OF  SYSTEM TIME '-10s';
+> BACKUP DATABASE workplace_csv INTO 'userfile://defaultdb.public.userfiles_jon/workplace-backup' AS OF  SYSTEM TIME '-10s';
         job_id       |  status   | fraction_completed | rows | index_entries | bytes
 ---------------------+-----------+--------------------+------+---------------+--------
   682009822370211601 | succeeded |                  1 |  200 |             0 |  8350
@@ -706,7 +706,7 @@ Time: 12.407s
 Additionally, you can backup a single table using the following command.
 
 ```sql
-> BACKUP workplace.employees INTO 'userfile://defaultdb.public.userfiles_jon/employees-backup' AS OF  SYSTEM TIME '-10s';
+> BACKUP workplace_csv.employees_csv INTO 'userfile://defaultdb.public.userfiles_jon/employees-backup' AS OF  SYSTEM TIME '-10s';
         job_id       |  status   | fraction_completed | rows | index_entries | bytes
 ---------------------+-----------+--------------------+------+---------------+--------
   682009558332090129 | succeeded |                  1 |  100 |             0 |  4175
@@ -788,8 +788,8 @@ $ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
 And drop the `employees` table in the `workplace` database.
 
 ```sql
-> USE workplace;
-> DROP TABLE employees;
+> USE workplace_csv;
+> DROP TABLE employees_csv;
 DROP TABLE
 
 Time: 350ms
@@ -798,7 +798,7 @@ Time: 350ms
 Then run the `RESTORE` command on the latest backup.
 
 ```sql
-> RESTORE TABLE workplace.employees FROM 'userfile:///employees-backup//2021/08/09-175151.88';
+> RESTORE TABLE workplace_csv.employees_csv FROM 'userfile:///employees-backup//2021/08/09-175151.88';
         job_id       |  status   | fraction_completed | rows | index_entries | bytes
 ---------------------+-----------+--------------------+------+---------------+--------
   683091868975376145 | succeeded |                  1 |  100 |             0 |  4275
@@ -807,9 +807,9 @@ Then run the `RESTORE` command on the latest backup.
 Time: 880ms
 ```
 
-Nice work! The `employees` table has been successfully restored.
+Nice work! The `employees_csv` table has been successfully restored.
 
-Next, change databases so the `workplace` database is not active and drop the entire `workplace` database. You will also need to disable `sql_safe_updates`.
+Next, change databases so the `workplace_csv` database is not active and drop the entire `workplace_csv` database. You will also need to disable `sql_safe_updates`.
 
 ```sql
 > USE defaultdb;
@@ -822,7 +822,7 @@ SET
 
 Time: 57ms
 
-> DROP DATABASE workplace;
+> DROP DATABASE workplace_csv;
 DROP DATABASE
 
 Time: 438ms
@@ -837,7 +837,7 @@ Time: 59ms
 Next, restore the full database.
 
 ```sql
-> RESTORE DATABASE workplace FROM 'userfile:///workplace-backup/2021/08/09-175343.68';
+> RESTORE DATABASE workplace_csv FROM 'userfile:///workplace-backup/2021/08/09-175343.68';
 
         job_id       |  status   | fraction_completed | rows | index_entries | bytes
 ---------------------+-----------+--------------------+------+---------------+--------
