@@ -29,14 +29,30 @@ A prototype of the application has been written in Python so we will look at how
 
 Firstly let's get comfortable connecting to your Free Tier cluster with both cockroach sql and with the psycopg2 driver in Python 3.
 
+We will set the COCKROACH_URL environment variable so that we don't have to use the --url option with every command.
 
-grant insert,update,delete on adventureworks.sales.shoppingcartitem to aw_web_fe;
+```bash
+# Linux / Mac
+> export COCKROACH_URL="postgresql://username:password@..."
+
+# Windows Powershell
+> $Env:COCKROACH_URL = "postgresql://username:password@..."
+```
+Now we can issue cockroach commands ...
+
+```bash
+# Connect to the SQL shell
+cockroach sql
+```
+
+To run python you can either install python directly on your machine or use Docker to run a python image as a container.
+
 
 ## Lab 2 - Create and Import the Adventureworks Schema
 
-In this lab, we will create a database  import data from comma-separated value (CSV) files. To accomplish this, you will import two existing CSV files that has been provided for this workshop. The `employee.csv` file contains records for 100 employees, including their employee number, birth date, first name, last name, gender and hire date. The `rooms.csv` file contains records for conference rooms, including the room number, name and capacity.
+In this lab, we will create a database and 2 schemas and then import data from comma-separated value (CSV) files.
 
-First, download the `employees.csv` and `rooms.csv` files from the `data/import-backup-restore` directory.
+First, download the 9 csv files from the `data/adventureworks/import-backup-restore` directory.
 
 Next, upload the CSV files to your Cockroach Cloud cluster as `userfiles`.
 
@@ -44,7 +60,13 @@ Next, upload the CSV files to your Cockroach Cloud cluster as `userfiles`.
 
 ```bash
 # upload data files to cluster
+$ cockroach userfile upload pmpdc.csv 
 $ cockroach userfile upload productsubcategory.csv 
+$ cockroach userfile upload product.csv 
+$ cockroach userfile upload productphoto.csv 
+$ cockroach userfile upload productproductphoto.csv 
+$ cockroach userfile upload productdescription.csv
+$ cockroach userfile upload productreview.csv 
 $ cockroach userfile upload specialoffer.csv 
 $ cockroach userfile upload specialofferproduct.csv 
 
@@ -215,8 +237,6 @@ So far we have been logging in to CC using an administrative user. The admin rol
 
 In this lab, we'll demonstrate how to set up a non-admin user and grant specific privileges to that user.
 
-
-
 ```sql
 -- Create the application user
 defaultdb> create user aw_web_fe with password notcha1nr3action;
@@ -352,13 +372,13 @@ Try it out - have one window logged in to CC as your admin user and another as t
 
 Update posgres_fns.py to set the correct URL for the pg_connect() function - remember to use the applicaton username and password - not the admin one!
 
-Build a docker image called adventureworks:1.0
+Build a docker image and run the image exposing port 80 ...
 
+```bash
 > docker build -t adventureworks:1.0 .
 
-Now run the image exposing port 80
-
 > docker run -p 80:80 --name adventureworks -d adventureworks:1.0
+```
 
 Connect to a browser with the url - http://localhost/cgi-bin/AW_home.py
 
