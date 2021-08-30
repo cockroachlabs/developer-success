@@ -8,3 +8,4 @@
 - [Topology Patterns](topology-patterns.md)
 - [Import, Backup, and Restore](import-backup-restore.md)
 - [Query Optimization](query-optimization.md)
+- [Node.js REST API](nodejs-rest.md)
