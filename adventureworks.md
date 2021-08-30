@@ -101,13 +101,13 @@ Once you are connected to the cluster via the SQL client, you can create a datab
 
 Next, switch to the `adventureworks` database and run the following SQL commands. 
 In order to successfully import data from the CSV files, the table schema must be defined to match the number and order of columns in the CSV file.
-You can also pre-create the table using `CREATE TABLE` and import the csv files using the `IMPORT INTO` command, but this currently doesn't work with the Free Tier.
-One other limitation with the Free Tier is that we can't directly import into a table in a user-defined schema so we will create and import the table in the public schema and then migrate the table to the desired schema (products or sales) using the ALTER TABLE ... SET SCHEMA command.
+You can also pre-create the table using `CREATE TABLE` and import the csv files using the `IMPORT INTO` command, but this is not currently supported when using the Free Tier.
+One other limitation with the Free Tier is that we can't directly import into a table in a user-defined schema, so as a woraround we will create/import the table to the default (public) schema and then migrate the table to the desired schema (products or sales) using the ALTER TABLE ... SET SCHEMA command.
 
 ```sql
-> USE adventureworks;
-> create schema production;
-> create schema sales;
+USE adventureworks;
+CREATE SCHEMA production;
+CREATE SCHEMA sales;
 
 IMPORT TABLE productsubcategory (
       productsubcategoryid INT8 NOT NULL DEFAULT unique_rowid() PRIMARY KEY,
@@ -287,15 +287,15 @@ Congratulations! You have successfully loaded the adventureworks schema into you
 
 ## Lab 3 - Setup a user for the web application
 
-So far we have been logging in to CC using an administrative user. The admin role gives us permissions for creating databases, tables, users and granting privileges as well as CRUD operations (select, insert, update, delete) on any table in the cluster. This is exactly what we need for setting up the environment initially, but if we were to configure this user's name and password into our web application we would be increasing the probability of unauthorised administrative access.   
+So far we have been logging in to our cluster using an administrative user. The admin role gives us permissions for creating databases, tables, users and granting privileges as well as the basic CRUD operations (select, insert, update, delete) on any table in the cluster. This is exactly what we need for setting up the environment initially, but if we were to configure this user's name and password into our web application we would be increasing the probability of unauthorised administrative access.   
 
-In this lab, we'll demonstrate how to set up a non-admin user and grant specific privileges to that user. We will do this using SQL as the Cockroach Cloud dashboard can only be used for creating admin users.
+In this lab, we'll demonstrate how to set up a non-admin user and grant specific privileges to that user. We will do this using SQL as the Cockroach Cloud dashboard can only be used for creating admin users. We will need to grant permissions at 3 levels - database, schema and object (table). 
 
 ```sql
 -- Create the application user
 create user aw_web_fe with password notcha1nr3action;
 
--- Grant only the necessary privileges (mostly just select, but need to midify rows in the shoppingcartitem table)
+-- Grant only the necessary privileges (mostly just select, but need to create, modify and delete rows in the shoppingcartitem table)
 grant connect on database adventureworks to aw_web_fe;
 grant usage on schema adventureworks.production to aw_web_fe;
 grant select on adventureworks.production.* to aw_web_fe;
@@ -303,7 +303,7 @@ grant usage on schema adventureworks.sales to aw_web_fe;
 grant select on adventureworks.sales.* to aw_web_fe;
 grant insert,update,delete on adventureworks.sales.shoppingcartitem to aw_web_fe;
 
-Change the COCKROACH_URL environment variable to include the username/password "aw_web_fe:notcha1nr3action" instead of the aw_admin username and password. We can also include the  database name (adventureworks) as we've now finished with uploading csv files.  
+Change the COCKROACH_URL environment variable to include the username/password "aw_web_fe:notcha1nr3action" instead of the aw_admin username and password. We will also include the  database name (adventureworks) as we've now finished with uploading csv files, and this is the only database that new user has access to.  
 
 ```bash
 # Linux / Mac
