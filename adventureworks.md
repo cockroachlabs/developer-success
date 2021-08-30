@@ -29,20 +29,32 @@ A prototype of the application has been written in Python so we will look at how
 
 Firstly let's get comfortable connecting to your Free Tier cluster with both cockroach sql and with the psycopg2 driver in Python 3.
 
-We will set the COCKROACH_URL environment variable so that we don't have to use the --url option with every command.
+Create an admin SQL user called aw_admin :
+* Login to the Cockroach Cloud dashboard
+* Navigate to your cluster
+* Click on SQL Users on the left and click Add User
+* Use the following details -  Username: aw_admin  Password: <your choice>
+
+
+We will be setting the COCKROACH_URL environment variable so that we don't have to use the --url option with every command. 
+We will need to use a format for the URL initially that doesn't specify a database name - this is because we need to upload some csv files and the cockroach upload command fails if we do specify a database. 
+Replace <password>, <address> and <cluster-name> with the details for your setup.
 
 ```bash
 # Linux / Mac
-> export COCKROACH_URL="postgresql://username:password@..."
+> export COCKROACH_URL="postgresql://aw_admin:<password>@<address>:26257?sslmode=require&options=--cluster=<cluster-name>"
 
 # Windows Powershell
-> $Env:COCKROACH_URL = "postgresql://username:password@..."
+> $Env:COCKROACH_URL = "postgresql://aw_admin:<password>@<address>:26257?sslmode=require&options=--cluster=<cluster-name>"
 ```
-Now we can issue cockroach commands ...
+Now we can issue cockroach commands like this ...
 
 ```bash
 # Connect to the SQL shell
 cockroach sql
+
+# List uploaded files
+cockroach userfile list
 ```
 
 To run python you can either install python directly on your machine or use Docker to run a python image as a container.
@@ -87,26 +99,25 @@ Once you are connected to the cluster via the SQL client, you can create a datab
 > CREATE DATABASE adventureworks;
 ```
 
-Next, switch to the `adventureworks` database and run the first `IMPORT TABLE` commands. 
-Remember to successfully import data from the CSV files, the table schema must be defined to match the number and order of columns in the CSV file.
-Alternatively you can pre-create the table using `CREATE TABLE` and import the csv files using the `IMPORT INTO` command.
-
-Make sure to replace `XXX` with the username that you are using to connect to your cluster.
+Next, switch to the `adventureworks` database and run the following SQL commands. 
+In order to successfully import data from the CSV files, the table schema must be defined to match the number and order of columns in the CSV file.
+You can also pre-create the table using `CREATE TABLE` and import the csv files using the `IMPORT INTO` command, but this currently doesn't work with the Free Tier.
+One other limitation with the Free Tier is that we can't directly import into a table in a user-defined schema so we will create and import the table in the public schema and then migrate the table to the desired schema (products or sales) using the ALTER TABLE ... SET SCHEMA command.
 
 ```sql
 > USE adventureworks;
 > create schema production;
 > create schema sales;
 
-> IMPORT TABLE productsubcategory (
+IMPORT TABLE productsubcategory (
       productsubcategoryid INT8 NOT NULL DEFAULT unique_rowid() PRIMARY KEY,
       productcategoryid INT8 NOT NULL,
       name VARCHAR(50) NOT NULL,
       modifieddate TIMESTAMP NOT NULL DEFAULT now():::TIMESTAMP
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_XXX/productsubcategory.csv");
-> ALTER TABLE productsubcategory SET SCHEMA production;
+  ) CSV DATA ("userfile://defaultdb.public.userfiles_aw_admin/productsubcategory.csv");
+ALTER TABLE productsubcategory SET SCHEMA production;
 
-> IMPORT TABLE product (
+IMPORT TABLE product (
       productid INT8 NOT NULL DEFAULT unique_rowid(),
       name VARCHAR(50) NOT NULL,
       productnumber VARCHAR(25) NOT NULL,
@@ -124,28 +135,28 @@ Make sure to replace `XXX` with the username that you are using to connect to yo
       INDEX product_productsubcategoryid (productsubcategoryid ASC),
       INDEX product_productnumber (productnumber ASC),
       CONSTRAINT "CK_Product_ListPrice" CHECK (listprice >= 0.00:::DECIMAL)
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_XXX/product.csv") WITH delimiter = '|';
-> ALTER TABLE product SET SCHEMA production;
-> UPDATE production.product SET weight=null WHERE weight=0.0;
-> UPDATE production.product SET color=null WHERE color='';
-> UPDATE production.product SET size=null WHERE size='';
+  ) CSV DATA ("userfile://defaultdb.public.userfiles_aw_admin/product.csv") WITH delimiter = '|';
+ALTER TABLE product SET SCHEMA production;
+UPDATE production.product SET weight=null WHERE weight=0.0;
+UPDATE production.product SET color=null WHERE color='';
+UPDATE production.product SET size=null WHERE size='';
 
-> IMPORT TABLE productphoto (
+IMPORT TABLE productphoto (
       productphotoid INT8 NOT NULL DEFAULT unique_rowid() PRIMARY KEY,
       modifieddate TIMESTAMP NOT NULL DEFAULT now():::TIMESTAMP,
       image_name VARCHAR(96) NULL
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_XXX/productphoto.csv");
-> ALTER TABLE productphoto SET SCHEMA production;
+  ) CSV DATA ("userfile://defaultdb.public.userfiles_aw_admin/productphoto.csv");
+ALTER TABLE productphoto SET SCHEMA production;
 
-> IMPORT TABLE productproductphoto (
+IMPORT TABLE productproductphoto (
       productid INT8 NOT NULL,
       productphotoid INT8 NOT NULL,
       modifieddate TIMESTAMP NOT NULL DEFAULT now():::TIMESTAMP,
       CONSTRAINT "primary" PRIMARY KEY (productid ASC, productphotoid ASC)
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_XXX/productproductphoto.csv");
-> ALTER TABLE productproductphoto SET SCHEMA production;
+  ) CSV DATA ("userfile://defaultdb.public.userfiles_aw_admin/productproductphoto.csv");
+ALTER TABLE productproductphoto SET SCHEMA production;
 
-> IMPORT TABLE productreview (
+IMPORT TABLE productreview (
       productreviewid INT8 NOT NULL PRIMARY KEY,
       productid INT8 NOT NULL,
       reviewername VARCHAR(50) NOT NULL,
@@ -156,28 +167,28 @@ Make sure to replace `XXX` with the username that you are using to connect to yo
       modifieddate TIMESTAMP NULL DEFAULT now():::TIMESTAMP,
       INDEX productreview_productid (productid ASC),
       CONSTRAINT "CK_ProductReview_Rating" CHECK ((rating >= 1:::INT8) AND (rating <= 5:::INT8))
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_XXX/productreview.csv") WITH delimiter = '|';
-> ALTER TABLE productreview SET SCHEMA production;
+  ) CSV DATA ("userfile://defaultdb.public.userfiles_aw_admin/productreview.csv") WITH delimiter = '|';
+ALTER TABLE productreview SET SCHEMA production;
 
-> IMPORT TABLE productmodelproductdescriptionculture (
+IMPORT TABLE productmodelproductdescriptionculture (
       productmodelid INT8 NOT NULL,
       productdescriptionid INT8 NOT NULL,
       cultureid CHAR(6) NOT NULL,
       modifieddate TIMESTAMP NOT NULL DEFAULT now():::TIMESTAMP,
       CONSTRAINT "primary" PRIMARY KEY (productmodelid ASC, cultureid ASC),
       INDEX productmodelproductdescriptionculture_productdescription (productdescriptionid ASC)
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_XXX/pmpdc.csv");
-> ALTER TABLE productmodelproductdescriptionculture SET SCHEMA production;
+  ) CSV DATA ("userfile://defaultdb.public.userfiles_aw_admin/pmpdc.csv");
+ALTER TABLE productmodelproductdescriptionculture SET SCHEMA production;
 
-> IMPORT TABLE productdescription (
+IMPORT TABLE productdescription (
       productdescriptionid INT8 NOT NULL,
       description VARCHAR(400) NOT NULL,
       modifieddate TIMESTAMP NOT NULL DEFAULT now():::TIMESTAMP,
       CONSTRAINT "primary" PRIMARY KEY (productdescriptionid ASC)
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_XXX/productdescription.csv") WITH delimiter = '|';
-> ALTER TABLE productdescription SET SCHEMA production;
+  ) CSV DATA ("userfile://defaultdb.public.userfiles_aw_admin/productdescription.csv") WITH delimiter = '|';
+ALTER TABLE productdescription SET SCHEMA production;
 
-> IMPORT TABLE specialoffer (
+IMPORT TABLE specialoffer (
       specialofferid INT8 NOT NULL,
       description VARCHAR(255) NOT NULL,
       discountpct DECIMAL NOT NULL DEFAULT 0.00:::DECIMAL,
@@ -189,16 +200,16 @@ Make sure to replace `XXX` with the username that you are using to connect to yo
       CONSTRAINT "primary" PRIMARY KEY (specialofferid ASC),
       CONSTRAINT "CK_SpecialOffer_DiscountPct" CHECK (discountpct >= 0.00:::DECIMAL),
       CONSTRAINT "CK_SpecialOffer_EndDate" CHECK (enddate >= startdate)
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_XXX/specialoffer.csv");
-> ALTER TABLE specialoffer SET SCHEMA sales;
+  ) CSV DATA ("userfile://defaultdb.public.userfiles_aw_admin/specialoffer.csv");
+ALTER TABLE specialoffer SET SCHEMA sales;
 
-> IMPORT TABLE specialofferproduct (
+IMPORT TABLE specialofferproduct (
       specialofferid INT8 NOT NULL,
       productid INT8 NOT NULL,
       modifieddate TIMESTAMP NOT NULL DEFAULT now():::TIMESTAMP,
       CONSTRAINT "primary" PRIMARY KEY (specialofferid ASC, productid ASC)
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_XXX/specialofferproduct.csv");
-> ALTER TABLE specialofferproduct SET SCHEMA sales;
+  ) CSV DATA ("userfile://defaultdb.public.userfiles_aw_admin/specialofferproduct.csv");
+ALTER TABLE specialofferproduct SET SCHEMA sales;
 
 CREATE TABLE sales.shoppingcartitem (
       shoppingcartid INT8 NOT NULL,
@@ -211,79 +222,112 @@ CREATE TABLE sales.shoppingcartitem (
       FAMILY "primary" (shoppingcartid, shoppingcartitemid, quantity, productid, unitprice, modifieddate),
       CONSTRAINT "CK_ShoppingCartItem_Quantity" CHECK (quantity >= 1:::INT8)
   );
-> INSERT INTO sales.shoppingcartitem values (626475451085367057,683895096480474897,1,712,8.99,'2021-08-12 14:30:20'),
+INSERT INTO sales.shoppingcartitem values (626475451085367057,683895096480474897,1,712,8.99,'2021-08-12 14:30:20'),
   						(626475451085367057,683954039363020561,1,716,49.99,'2021-08-12 19:30:08'),
   						(626475451085367057,683954302335592209,1,969,2384.07,'2021-08-12 19:31:28'),
   						(626475451085367057,683954461303088913,1,760,782.99,'2021-08-12 19:32:16');
 
 ```
 
-Once the import is completed, you can view the imported table and select a handful of rows from the table to verify that the data was successfully imported.
+Once the import is completed, you can view the imported tables and select a handful of rows from a selection of tables to verify that the data was successfully imported.
+There should be a total of 10 tables in the adventurework database - 7 in the production schema and 3 in the sales schema. We will set our search_path session setting to include all schemas so that we don't need to specify the schema name with every SQL statement.
+The final example query below is an example of a join between one table in the sales schema and another table in the production schema. The prototype application needs to peform something similar to render the Show Basket page. 
+
 
 ```sql
-> SHOW TABLES;
-> SET search_path=production,sales,public;
-> SELECT * FROM productsubcategory WHERE name = 'Gloves';
-> SELECT productnumber, name, size, color, listprice FROM product WHERE productsubcategoryid = 20;
-> SELECT p.productnumber, p.name, s.quantity, s.unitprice FROM product p, shoppingcartitem s WHERE p.productid = s.productid; 	
+SHOW TABLES;
+   
+     schema_name |              table_name               | type  |  owner   | estimated_row_count | locality
+--------------+---------------------------------------+-------+----------+---------------------+-----------
+  production  | product                               | table | aw_admin |                 504 | NULL
+  production  | productdescription                    | table | aw_admin |                 254 | NULL
+  production  | productmodelproductdescriptionculture | table | aw_admin |                 254 | NULL
+  production  | productphoto                          | table | aw_admin |                  28 | NULL
+  production  | productproductphoto                   | table | aw_admin |                 161 | NULL
+  production  | productreview                         | table | aw_admin |                   4 | NULL
+  production  | productsubcategory                    | table | aw_admin |                  38 | NULL
+  sales       | shoppingcartitem                      | table | aw_admin |                   4 | NULL
+  sales       | specialoffer                          | table | aw_admin |                  16 | NULL
+  sales       | specialofferproduct                   | table | aw_admin |                  42 | NULL
+(10 rows)
+   
+SET search_path=production,sales,public;
+   
+SELECT * FROM productsubcategory WHERE name = 'Gloves';
+   
+  productsubcategoryid | productcategoryid |  name  |    modifieddate
+-----------------------+-------------------+--------+----------------------
+                    20 |                 3 | Gloves | 2008-04-30 00:00:00
+   
+SELECT productnumber, name, size, color, listprice FROM product WHERE productsubcategoryid = 20;
+   
+  productnumber |         name          | size | color | listprice
+----------------+-----------------------+------+-------+------------
+  GL-H102-S     | Half-Finger Gloves, S | S    | Black |     24.49
+  GL-H102-M     | Half-Finger Gloves, M | M    | Black |     24.49
+  GL-H102-L     | Half-Finger Gloves, L | L    | Black |     24.49
+  GL-F110-S     | Full-Finger Gloves, S | S    | Black |     37.99
+  GL-F110-M     | Full-Finger Gloves, M | M    | Black |     37.99
+  GL-F110-L     | Full-Finger Gloves, L | L    | Black |     37.99
+(6 rows)
+   
+SELECT p.productnumber, p.name, s.quantity, s.unitprice FROM product p, shoppingcartitem s WHERE p.productid = s.productid; 
+   
+  productnumber |            name             | quantity | unitprice
+----------------+-----------------------------+----------+------------
+  CA-1098       | AWC Logo Cap                |        1 |      8.99
+  LJ-0192-X     | Long-Sleeve Logo Jersey, XL |        1 |     49.99
+  BK-R50R-60    | Road-650 Red, 60            |        1 |    782.99
+  BK-T79U-60    | Touring-1000 Blue, 60       |        1 |   2384.07
+(4 rows)
 ```
 
-Congratulations! You have successfully loaded the adventureworks schema into your Cockroach Cloud cluster!
+Congratulations! You have successfully loaded the adventureworks schema into your Cockroach Cloud cluster and performed some sample queries!
 
 
 ## Lab 3 - Setup a user for the web application
 
 So far we have been logging in to CC using an administrative user. The admin role gives us permissions for creating databases, tables, users and granting privileges as well as CRUD operations (select, insert, update, delete) on any table in the cluster. This is exactly what we need for setting up the environment initially, but if we were to configure this user's name and password into our web application we would be increasing the probability of unauthorised administrative access.   
 
-In this lab, we'll demonstrate how to set up a non-admin user and grant specific privileges to that user.
+In this lab, we'll demonstrate how to set up a non-admin user and grant specific privileges to that user. We will do this using SQL as the Cockroach Cloud dashboard can only be used for creating admin users.
 
 ```sql
 -- Create the application user
-defaultdb> create user aw_web_fe with password notcha1nr3action;
-
-CREATE DATABASE
+create user aw_web_fe with password notcha1nr3action;
 
 -- Grant only the necessary privileges (mostly just select, but need to midify rows in the shoppingcartitem table)
-> grant connect on database adventureworks to aw_web_fe;
-> grant usage on schema adventureworks.production to aw_web_fe;
-> grant select on adventureworks.production.* to aw_web_fe;
-> grant usage on schema adventureworks.sales to aw_web_fe;
-> grant select on adventureworks.sales.* to aw_web_fe;
-> grant insert,update,delete on adventureworks.sales.shoppingcartitem to aw_web_fe;
+grant connect on database adventureworks to aw_web_fe;
+grant usage on schema adventureworks.production to aw_web_fe;
+grant select on adventureworks.production.* to aw_web_fe;
+grant usage on schema adventureworks.sales to aw_web_fe;
+grant select on adventureworks.sales.* to aw_web_fe;
+grant insert,update,delete on adventureworks.sales.shoppingcartitem to aw_web_fe;
 
-Change the COCKROACH_URL environment variable to include the username/password "aw_web_fe:notcha1nr3action" instead of the admin username and password  
+Change the COCKROACH_URL environment variable to include the username/password "aw_web_fe:notcha1nr3action" instead of the aw_admin username and password. We can also include the  database name (adventureworks) as we've now finished with uploading csv files.  
 
 ```bash
+# Linux / Mac
+$ export COCKROACH_URL="postgresql://aw_web_fe:notcha1nr3action@<address>:26257/adventureworks?sslmode=require&options=--cluster=<cluster-name>"
+
+# Windows Powershell
+> $Env:COCKROACH_URL = "postgresql://aw_web_fe:notcha1nr3action@<address>:26257/adventureworks?sslmode=require&options=--cluster=<cluster-name>"
+
 # verify that the new setting works
-$ cockroach sql -d adventureworks
+$ cockroach sql
+   
+adventureworks> select user;
+   
+  current_user
+----------------
+  aw_web_fe 
+
 ```
 
 Let's repeat one of the queries that we ran earlier.
-Remember to set the search_path to include both production and sales schemas.
+We must remember to set the search_path to include both production and sales schemas if we don't want to specify them every time. This is a session-level setting, so must be set every time we create a new connection to the cluster.
+
 
 ```sql
-> SELECT user;
-
-  current_user
-----------------
-  aw_web_fe
-
-> SHOW TABLES;
-
-  schema_name |              table_name               | type  |  owner   | estimated_row_count | locality
---------------+---------------------------------------+-------+----------+---------------------+-----------
-  production  | product                               | table | alistair |                 504 | NULL
-  production  | productdescription                    | table | alistair |                 254 | NULL
-  production  | productmodelproductdescriptionculture | table | alistair |                 254 | NULL
-  production  | productphoto                          | table | alistair |                  28 | NULL
-  production  | productproductphoto                   | table | alistair |                 161 | NULL
-  production  | productreview                         | table | alistair |                   4 | NULL
-  production  | productsubcategory                    | table | alistair |                  38 | NULL
-  sales       | shoppingcartitem                      | table | alistair |                   0 | NULL
-  sales       | specialoffer                          | table | alistair |                  16 | NULL
-  sales       | specialofferproduct                   | table | alistair |                  42 | NULL
-(10 rows)
-
 > SET search_path=production,sales;
 SET
 
@@ -296,7 +340,22 @@ SET
   BK-R50R-60    | Road-650 Red, 60            |        1 |    782.99
   BK-T79U-60    | Touring-1000 Blue, 60       |        1 |   2384.07
 (4 rows)
+```
+We now are going to test the bounds of the aw_web_fe user by attempting the following actions that we expect to succeed:
+* Selecting the most expensive items in the shoppingcartitem table (unit price over 700)
+* Updating the quantity of the cheaper item from 1 to 2
+* Deleting the most expensive item
+* Inserting a brand new item
+* Confirming the actions have been successful by re-executing the join query on products and shoppingcartitem 
 
+And the following actions which we expect to fail (these are all actions that should require permissions of an admin user):
+* Inserting a new photo for a product
+* Deleting a product
+* Changing the rating of a product review
+* Dropping the product table
+* Creating a new table in the production schema 
+   
+```sql   
 
 > SELECT * FROM shoppingcartitem WHERE unitprice > 700.00;
 
@@ -357,7 +416,10 @@ SQLSTATE: 42501
 > DROP TABLE product;
 ERROR: user aw_web_fe does not have DROP privilege on relation product
 SQLSTATE: 42501
-
+   
+> CREATE TABLE products_copy AS SELECT * from products;
+ERROR: user aw_web_fe does not have CREATE privilege on schema production
+SQLSTATE: 42501
 ```
 
 We have successfully created a user for the application front end and given it a limited set of access permissions.
