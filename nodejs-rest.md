@@ -34,6 +34,7 @@ npm i express pg dotenv nodemon
 
 ## Lab3 - Start up app
 
+TODO: instruction to actually download the zip file, unzip it and rename accordingly
 Rename example-app-node-postgres/env-template to example-app-node-postgres/.env and update the connection info and credentials.
 
 ```text
