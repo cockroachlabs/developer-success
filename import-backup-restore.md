@@ -6,7 +6,7 @@ Cockroach Cloud supports a wide range of import, backup and restore options, of 
 
 To explore this subset of options, you can use user-specific cluster file storage, called `userfiles`, to do import, backup and restore.
 
-In these labs, you will learn how to manage `userfiles` and leverage `userfiles` to import data from CSV files, Postgresql and MySQL. You will also learn how to backup and restore an entire cluster, a database and a single table. 
+In these labs, you will learn how to manage `userfiles` and leverage `userfiles` to import data from CSV files, Postgresql and MySQL. You will also learn how to backup and restore an entire cluster, a database and a single table.
 
 ## Labs Prerequisites
 
@@ -25,10 +25,10 @@ In these labs, you will learn how to manage `userfiles` and leverage `userfiles`
 
 Before getting started with the import, backup and restore labs, you will want to be familiar with interacting with the user-specific cluster storage called `userfiles`. Cockroach Cloud supports the following commands for managing cluster `userfiles`:
 
-* `cockroach userfile upload`
-* `cockroach userfile list`
-* `cockroach userfile get`
-* `cockroach userfile delete`
+- `cockroach userfile upload`
+- `cockroach userfile list`
+- `cockroach userfile get`
+- `cockroach userfile delete`
 
 To try out these commands, download the `employees.csv` file from the `data/import-backup-restore` directory. You will use this `userfile` in the next lab when you explore importing data from CSV.
 
@@ -70,7 +70,6 @@ successfully deleted employees.csv
 ```
 
 These are all of the commands that you will need to know to leverage `userfiles` in the following labs.
-
 
 ## Lab 2 - Import Data from CSV
 
@@ -427,6 +426,7 @@ $ docker cp rooms.csv import-mysql:/rooms.csv
 ```
 
 and connect to it:
+
 ```bash
 # Get shell in container
 $ docker exec -it import-mysql /bin/bash
@@ -654,10 +654,9 @@ Time: 828ms
 
 Nice work! We were able to re-import just the `employees_mysql` table.
 
-
 ## Lab 5 - Backup and Restore Data on a Single Cluster
 
-Cockroach Cloud Free Tier automatically backs up all clusters but those backups are not currently available via the cluster console. However, you can create manual database and table backups to `userfiles` that can be used to restore database and table data. 
+Cockroach Cloud Free Tier automatically backs up all clusters but those backups are not currently available via the cluster console. However, you can create manual database and table backups to `userfiles` that can be used to restore database and table data.
 
 Although Cockroach Cloud Free Tier supports manual full cluster backups to `userfiles`, those imports can only be imported into CockroachDB self-hosted.
 
@@ -688,7 +687,7 @@ Time: 24.588s
 On your local machine, you can use the following command to download the full backup.
 
 ```bash
-$ cockroach userfile get full-backup --url "postgresql://<yourname>:<password>@[...]"
+cockroach userfile get full-backup --url "postgresql://<yourname>:<password>@[...]"
 ```
 
 To backup a single database rather than the full cluster, you can re-connect to your cluster and execute the following command.
@@ -782,7 +781,7 @@ This list shows that I have 2 `employees` table backups, 2 `workplace` database 
 Let's start by restoring the `employee` table. Login to your cluster.
 
 ```bash
-$ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
+cockroach sql --url "postgresql://<yourname>:<password>@[...]"
 ```
 
 And drop the `employees` table in the `workplace` database.

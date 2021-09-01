@@ -1,16 +1,14 @@
-# Adventureworks - an example web application 
+# Adventureworks - an example web application
 
 ## Overview
 
 Adventureworks is a fictitious cycle products company used as the basis for a number of demos for SQL Server. As you can see from the full schema diagram below there are a lot of tables (and this is just the OLTP schemas!!)
 
+We will work with a small subset of the tables with the ultimate aim of constructing an interactive website. The application will run in Docker (or Kubernetes if you prefer) with the backend database being stored on Cockroach Cloud Free.
 
-We will work with a small subset of the tables with the ultimate aim of constructing an interactive website. The application will run in Docker (or Kubernetes if you prefer) with the backend database being stored on Cockroach Cloud Free. 
-
-In the first section we will use a PostgreSQL version of Adventureworks to step through the process of schema conversion  and deployment onto Cockroach Cloud Free. 
+In the first section we will use a PostgreSQL version of Adventureworks to step through the process of schema conversion  and deployment onto Cockroach Cloud Free.
 We will then load some sample data into the schema objects and construct the SQL statements required for the website interactions.
 A prototype of the application has been written in Python so we will look at how to connect to the adventureworks database and execute the SQL interactions using the psycopg2 driver.
-   
 
 ## Labs Prerequisites
 
@@ -30,14 +28,14 @@ A prototype of the application has been written in Python so we will look at how
 Firstly let's get comfortable connecting to your Free Tier cluster with both cockroach sql and with the psycopg2 driver in Python 3.
 
 Create an admin SQL user called aw_admin :
-* Login to the Cockroach Cloud dashboard
-* Navigate to your cluster
-* Click on SQL Users on the left and click Add User
-* Use the following details -  Username: aw_admin  Password: <your choice>
 
+- Login to the Cockroach Cloud dashboard
+- Navigate to your cluster
+- Click on SQL Users on the left and click Add User
+- Use the following details -  Username: aw_admin  Password: <your choice>
 
-We will be setting the COCKROACH_URL environment variable so that we don't have to use the --url option with every command. 
-We will need to use a format for the URL initially that doesn't specify a database name - this is because we need to upload some csv files and the cockroach upload command fails if we do specify a database. 
+We will be setting the COCKROACH_URL environment variable so that we don't have to use the --url option with every command.
+We will need to use a format for the URL initially that doesn't specify a database name - this is because we need to upload some csv files and the cockroach upload command fails if we do specify a database.
 Replace <password>, <address> and <cluster-name> with the details for your setup.
 
 ```bash
@@ -47,6 +45,7 @@ Replace <password>, <address> and <cluster-name> with the details for your setup
 # Windows Powershell
 > $Env:COCKROACH_URL = "postgresql://aw_admin:<password>@<address>:26257?sslmode=require&options=--cluster=<cluster-name>"
 ```
+
 Now we can issue cockroach commands like this ...
 
 ```bash
@@ -58,7 +57,6 @@ cockroach userfile list
 ```
 
 To run python you can either install python directly on your machine or use Docker to run a python image as a container.
-
 
 ## Lab 2 - Create and Import the Adventureworks Schema
 
@@ -99,7 +97,7 @@ Once you are connected to the cluster via the SQL client, you can create a datab
 > CREATE DATABASE adventureworks;
 ```
 
-Next, switch to the `adventureworks` database and run the following SQL commands. 
+Next, switch to the `adventureworks` database and run the following SQL commands.
 In order to successfully import data from the CSV files, the table schema must be defined to match the number and order of columns in the CSV file.
 You can also pre-create the table using `CREATE TABLE` and import the csv files using the `IMPORT INTO` command, but this is not currently supported when using the Free Tier.
 One other limitation with the Free Tier is that we can't directly import into a table in a user-defined schema, so as a woraround we will create/import the table to the default (public) schema and then migrate the table to the desired schema (products or sales) using the ALTER TABLE ... SET SCHEMA command.
@@ -223,16 +221,15 @@ CREATE TABLE sales.shoppingcartitem (
       CONSTRAINT "CK_ShoppingCartItem_Quantity" CHECK (quantity >= 1:::INT8)
   );
 INSERT INTO sales.shoppingcartitem values (626475451085367057,683895096480474897,1,712,8.99,'2021-08-12 14:30:20'),
-  						(626475451085367057,683954039363020561,1,716,49.99,'2021-08-12 19:30:08'),
-  						(626475451085367057,683954302335592209,1,969,2384.07,'2021-08-12 19:31:28'),
-  						(626475451085367057,683954461303088913,1,760,782.99,'2021-08-12 19:32:16');
+  (626475451085367057,683954039363020561,1,716,49.99,'2021-08-12 19:30:08'),
+  (626475451085367057,683954302335592209,1,969,2384.07,'2021-08-12 19:31:28'),
+  (626475451085367057,683954461303088913,1,760,782.99,'2021-08-12 19:32:16');
 
 ```
 
 Once the import is completed, you can view the imported tables and select a handful of rows from a selection of tables to verify that the data was successfully imported.
 There should be a total of 10 tables in the adventurework database - 7 in the production schema and 3 in the sales schema. We will set our search_path session setting to include all schemas so that we don't need to specify the schema name with every SQL statement.
-The final example query below is an example of a join between one table in the sales schema and another table in the production schema. The prototype application needs to peform something similar to render the Show Basket page. 
-
+The final example query below is an example of a join between one table in the sales schema and another table in the production schema. The prototype application needs to peform something similar to render the Show Basket page.
 
 ```sql
 SHOW TABLES;
@@ -284,12 +281,11 @@ SELECT p.productnumber, p.name, s.quantity, s.unitprice FROM product p, shopping
 
 Congratulations! You have successfully loaded the adventureworks schema into your Cockroach Cloud cluster and performed some sample queries!
 
-
 ## Lab 3 - Setup a user for the web application
 
-So far we have been logging in to our cluster using an administrative user. The admin role gives us permissions for creating databases, tables, users and granting privileges as well as the basic CRUD operations (select, insert, update, delete) on any table in the cluster. This is exactly what we need for setting up the environment initially, but if we were to configure this user's name and password into our web application we would be increasing the probability of unauthorised administrative access.   
+So far we have been logging in to our cluster using an administrative user. The admin role gives us permissions for creating databases, tables, users and granting privileges as well as the basic CRUD operations (select, insert, update, delete) on any table in the cluster. This is exactly what we need for setting up the environment initially, but if we were to configure this user's name and password into our web application we would be increasing the probability of unauthorised administrative access.
 
-In this lab, we'll demonstrate how to set up a non-admin user and grant specific privileges to that user. We will do this using SQL as the Cockroach Cloud dashboard can only be used for creating admin users. We will need to grant permissions at 3 levels - database, schema and object (table). 
+In this lab, we'll demonstrate how to set up a non-admin user and grant specific privileges to that user. We will do this using SQL as the Cockroach Cloud dashboard can only be used for creating admin users. We will need to grant permissions at 3 levels - database, schema and object (table).
 
 ```sql
 -- Create the application user
@@ -326,7 +322,6 @@ adventureworks> select user;
 Let's repeat one of the queries that we ran earlier.
 We must remember to set the search_path to include both production and sales schemas if we don't want to specify them every time. This is a session-level setting, so must be set every time we create a new connection to the cluster.
 
-
 ```sql
 > SET search_path=production,sales;
 SET
@@ -341,22 +336,24 @@ SET
   BK-T79U-60    | Touring-1000 Blue, 60       |        1 |   2384.07
 (4 rows)
 ```
+
 We now are going to test the bounds of the aw_web_fe user by attempting the following actions that we expect to succeed:
-* Selecting the most expensive items in the shoppingcartitem table (unit price over 700)
-* Updating the quantity of the cheaper item from 1 to 2
-* Deleting the most expensive item
-* Inserting a brand new item
-* Confirming the actions have been successful by re-executing the join query on products and shoppingcartitem 
+
+- Selecting the most expensive items in the shoppingcartitem table (unit price over 700)
+- Updating the quantity of the cheaper item from 1 to 2
+- Deleting the most expensive item
+- Inserting a brand new item
+- Confirming the actions have been successful by re-executing the join query on products and shoppingcartitem
 
 And the following actions which we expect to fail (these are all actions that should require permissions of an admin user):
-* Inserting a new photo for a product
-* Deleting a product
-* Changing the rating of a product review
-* Dropping the product table
-* Creating a new table in the production schema 
-   
-```sql   
 
+- Inserting a new photo for a product
+- Deleting a product
+- Changing the rating of a product review
+- Dropping the product table
+- Creating a new table in the production schema
+
+```sql
 > SELECT * FROM shoppingcartitem WHERE unitprice > 700.00;
 
     shoppingcartid   | shoppingcartitemid | quantity | productid | unitprice |    modifieddate
@@ -429,7 +426,6 @@ The web application currently lacks the functionality to create new rows in prod
 Note that unlike many other database technologies, CockroachDB users pick up granted privileges immediately - you do not have to log out and in again to pick up the privs!
 Try it out - have one window logged in to CC as your admin user and another as the appliation user. Grants will take effect without having to reconnect.
 
-
 ## Lab 5 - Build the application docker image and run as a container
 
 Update posgres_fns.py to set the correct URL for the pg_connect() function - remember to use the applicaton username and password - not the admin one!
@@ -442,7 +438,6 @@ Build a docker image and run the image exposing port 80 ...
 > docker run -p 80:80 --name adventureworks -d adventureworks:1.0
 ```
 
-Connect to a browser with the url - http://localhost/cgi-bin/AW_home.py
-
+Connect to a browser with the url - <http://localhost/cgi-bin/AW_home.py>
 
 Congratulations! You have just successfully deployed a prototype website using Cockroach Cloud Free Tier as the database backend.
