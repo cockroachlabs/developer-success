@@ -4,7 +4,7 @@
 
 Query optimization is an essential part of database development.
 
-In these labs, you will learn how to use
+In these labs, you will explore how to use the following statements:
 
 - SHOW STATISTICS
 - ANALYZE
