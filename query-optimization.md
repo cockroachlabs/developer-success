@@ -4,7 +4,7 @@
 
 Query optimization is an essential part of database development.
 
-In these labs, you will explore how to use the following statements:
+In these labs, you will explore the following statements:
 
 - SHOW STATISTICS
 - ANALYZE
@@ -14,12 +14,12 @@ In these labs, you will explore how to use the following statements:
 
 ## Labs Prerequisites
 
-1. Connection URL to the CockroachDB Cloud Free Tier
+1. Connection URL to the [CockroachDB Free Tier](https://www.cockroachlabs.com/free-tier/)
 
 2. You also need:
 
-    - a modern web browser,
-    - [Cockroach SQL client](https://www.cockroachlabs.com/docs/stable/install-cockroachdb-linux)
+    - a modern web browser
+    - the [Cockroach SQL client](https://www.cockroachlabs.com/docs/stable/install-cockroachdb-mac.html)
 
 ## Lab 1 - Setup TPCC using Cockroach SQL Client
 
@@ -31,12 +31,12 @@ Format:
 $ cockroach workload init tpcc --drop --db tpcc --warehouses 5 JDBC_URL
 ```
 
-For "JDBC_URL" specify the JDBC URL that the CockroachDB Cloud Free Tier signup page showed you when you created your cluster.
+For "JDBC_URL" specify the JDBC URL that the CockroachDB Free Tier signup page showed you when you created your cluster.
 
 For example:
 
 ```bash
-cockroach workload init tpcc --drop --db tpcc --warehouses 5 "postgresql://USER:$PASSWORD@free-tier.gcp-us-central1.cockroachlabs.cloud:26257/tpcc?sslmode=verify-full&sslrootcert=$HOME/.postgresql/root.crt&options=--cluster%3CLUSTER_NAME"
+$ cockroach workload init tpcc --drop --db tpcc --warehouses 5 "postgresql://USER:$PASSWORD@free-tier.gcp-us-central1.cockroachlabs.cloud:26257/tpcc?sslmode=verify-full&sslrootcert=$HOME/.postgresql/root.crt&options=--cluster%3CLUSTER_NAME"
 I210923 21:33:56.771027 1 workload/workloadsql/dataload.go:146  [-] 1  imported warehouse (0s, 5 rows)
 I210923 21:34:01.556860 1 workload/workloadsql/dataload.go:146  [-] 2  imported district (5s, 50 rows)
 I210923 21:35:32.895433 1 workload/workloadsql/dataload.go:146  [-] 3  imported customer (1m31s, 150000 rows)
@@ -56,7 +56,7 @@ Connect to your CockroachDB instance using a database client.  Issue the followi
 -- Create a database to play in
 CREATE DATABASE test;
 
--- Switch to the database we just created
+-- Switch to the database you just created
 USE test;
 
 -- Create a test table
@@ -94,43 +94,47 @@ Issue the following queries one at a time, and observe the results.
 USE tpcc;
 
 -- basic full scan OK
-explain select c_balance from customer;
+EXPLAIN SELECT c_balance FROM customer;
 
 -- show limited scan
-explain select c_balance from customer limit 10;
+EXPLAIN SELECT c_balance FROM customer LIMIT 10;
 
 -- show bad full scan
-explain select c_zip from customer where c_city='Austin';
+EXPLAIN SELECT c_zip 
+    FROM customer 
+    WHERE c_city='Austin';
 
 -- show good index but bad index join
-explain select c_zip from customer where c_w_id=0 and c_d_id=1 and c_last='BARBARBAR';
+EXPLAIN SELECT c_zip 
+    FROM customer 
+    WHERE c_w_id=0 AND c_d_id=1 AND c_last='BARBARBAR';
 
 -- look at the indexes
-show indexes from customer;
+SHOW INDEXES FROM customer;
 
 -- look at the table definition
-show create table customer;
+SHOW CREATE TABLE customer;
 
 -- more complex plan - simple
 EXPLAIN SELECT ol_number, SUM(ol_quantity) 
-     FROM order_line 
-     WHERE ol_amount > 8000 
-     GROUP BY ol_number 
-     ORDER BY ol_number;
+    FROM order_line 
+    WHERE ol_amount > 8000 
+    GROUP BY ol_number 
+    ORDER BY ol_number;
 
 -- more complex plan - verbose
 EXPLAIN (VERBOSE) SELECT ol_number, SUM(ol_quantity) 
-     FROM order_line 
-     WHERE ol_amount > 8000 
-     GROUP BY ol_number 
-     ORDER BY ol_number;
+    FROM order_line 
+    WHERE ol_amount > 8000 
+    GROUP BY ol_number 
+    ORDER BY ol_number;
 
 -- even more complex plan - opt, verbose
 EXPLAIN (OPT, VERBOSE) SELECT ol_number, SUM(ol_quantity) 
-     FROM order_line 
-     WHERE ol_amount > 8000 
-     GROUP BY ol_number 
-     ORDER BY ol_number;
+    FROM order_line 
+    WHERE ol_amount > 8000 
+    GROUP BY ol_number 
+    ORDER BY ol_number;
 
 -- introducing EXPLAIN (ANALYZE) - no analyze
 EXPLAIN SELECT * FROM warehouse;
@@ -139,19 +143,17 @@ EXPLAIN SELECT * FROM warehouse;
 EXPLAIN ANALYZE SELECT * FROM warehouse;
 
 -- show filter and sort in EXPLAIN (ANALYZE)
-EXPLAIN ANALYZE select * from item where i_price > 100 order by i_price desc;
+EXPLAIN ANALYZE SELECT * 
+    FROM item 
+    WHERE i_price > 100 
+    ORDER BY i_price desc;
 
 -- show group by aggregate in EXPLAIN (ANALYZE)
-EXPLAIN ANALYZE SELECT ol_number, SUM(ol_quantity) FROM order_line
-     WHERE ol_amount > 8000 GROUP BY ol_number ORDER BY ol_number;
-
--- EXPLAIN ANALYZE (DEBUG) to get a Zip file with detailed info
-EXPLAIN ANALYZE (DEBUG)
-SELECT ol_number, SUM(ol_quantity)
-FROM order_line
-WHERE ol_amount > 8000
-GROUP BY ol_number
-ORDER BY ol_number;
+EXPLAIN ANALYZE SELECT ol_number, SUM(ol_quantity) 
+    FROM order_line
+    WHERE ol_amount > 8000 
+    GROUP BY ol_number 
+    ORDER BY ol_number;
 ```
 
 ## Lab 4 - Indexes and Covering Indexes, and Partial Indexes
@@ -161,54 +163,63 @@ Issue the following queries one at a time, and observe the results.
 
 ```sql
 -- no index
-explain analyze select ol_amount, ol_quantity from order_line where ol_supply_w_id=100;
+EXPLAIN ANALYZE SELECT ol_amount, ol_quantity 
+    FROM order_line 
+    WHERE ol_supply_w_id=100;
 
 -- add non-covering index
--- about 70 sec
+-- about 30 sec
 -- DELETE TO RE-RUN
 -- drop index idx1;
-create index idx1 on order_line (ol_supply_w_id);
+CREATE INDEX idx1 ON order_line (ol_supply_w_id);
 
 -- see plan with non-covering index: better but not best
-explain analyze select ol_amount, ol_quantity from order_line where ol_supply_w_id=100;
+EXPLAIN ANALYZE SELECT ol_amount, ol_quantity 
+    FROM order_line 
+    WHERE ol_supply_w_id=100;
 
 -- add covering index
 -- about 30-75 sec
 -- DELETE TO RE-RUN
 -- drop index idx2;
-create index idx2 on order_line ( ol_supply_w_id ) storing (ol_quantity, ol_amount);
+CREATE INDEX idx2 ON order_line (ol_supply_w_id) STORING (ol_quantity, ol_amount);
 
 -- show with covering index
-explain analyze select ol_amount, ol_quantity from order_line where ol_supply_w_id=100;
+EXPLAIN ANALYZE SELECT ol_amount, ol_quantity 
+    FROM order_line 
+    WHERE ol_supply_w_id=100;
 
 
 ---- partial indexes ----
 
 -- how many order lines?
-select count(*) from order_line;
+SELECT COUNT(*) FROM order_line;
 
 -- how many order lines over $9000 ?
-select count(*) from order_line where ol_amount > 9000;
+SELECT COUNT(*) 
+    FROM order_line 
+    WHERE ol_amount > 9000;
 
 -- what does ol_dist_info look like?
-select ol_dist_info from order_line limit 15;
+SELECT ol_dist_info 
+    FROM order_line LIMIT 15;
 
 -- pre-index explain how many order lines over $9000 have ol_dist_info that starts with 'a' ?
-explain analyze select count(*) 
-from order_line
-where ol_amount > 9000 and left(ol_dist_info, 1) = 'a';
+EXPLAIN ANALYZE SELECT COUNT(*) 
+    FROM order_line
+    WHERE ol_amount > 9000 AND LEFT(ol_dist_info, 1) = 'a';
 
 -- create the partial index
 -- about 25 sec
 -- DELETE TO RE-RUN
 -- drop index idx_dist_info_partial;
 CREATE INDEX idx_dist_info_partial
-   ON order_line(ol_dist_info)
-   WHERE ol_amount > 9000;
+    ON order_line(ol_dist_info)
+    WHERE ol_amount > 9000;
 
 -- faster!
 -- post-index explain how many order lines over $9000 have ol_dist_info that starts with 'a' ?
-explain analyze select count(*) 
-from order_line
-where ol_amount > 9000 and left(ol_dist_info, 1) = 'a';
+EXPLAIN ANALYZE SELECT COUNT(*) 
+    FROM order_line
+    WHERE ol_amount > 9000 AND LEFT(ol_dist_info, 1) = 'a';
 ```
