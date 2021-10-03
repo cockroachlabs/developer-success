@@ -52,8 +52,11 @@ DB_PORT=26257
 ## start app
 Nodemon index.js
 ```
-
-In browser open `http://localhost:3000/api/customers`
+Use Postman or Curl to test REST API service 
+```bash
+curl -X GET http://localhost:3000/
+```
+Or in browser open `http://localhost:3000/`
 
 ## Lab 4 - Test Create API
 
@@ -68,7 +71,6 @@ curl -X POST \
   "email": "jsnow@gameofthrone.net"
 }'
 ```
-
 ## Lab 4 - Test Create API
 
 Use Postman or Curl to create a user called Jon Snow w/ email jsnow@gameofthrone.net
@@ -82,37 +84,22 @@ $ curl -X POST \
   "email": "jsnow@gameofthrone.net"
 }'
 ```
-
-## Lab 5 - Test Create API
-
-Use Postman or Curl to create a user called Jon Snow w/ email jsnow@gameofthrone.net
-
-```bash
-$ curl -X POST \
-  http://localhost:3000/api/customers \
-  -H 'content-type: application/json' \
-  -d '{"first_name":"John",
-  "last_name": "Snow",
-  "email": "jsnow@gameofthrone.net"
-}'
-```
-
 ## Lab 5 - Test Select API
 
-Use the UUID returned Postman or Curl to get the user
+Use following REST call in Postman or Curl to get the user.  Update ${uuidreturned} with the UUID returned 
 
 ```bash
 curl -X GET \
-  http://localhost:3000/api/customers/{uuidreturned} 
+  http://localhost:3000/api/customers/${uuidreturned} 
 ```
 
 ## Lab 6 - Test Update API
 
-Use the UUID returned Postman or Curl to update Jon Snow's email address
+Use following REST call in Postman or Curl to update Jon Snow's email address
 
 ```bash
 curl -X PUT \
-  http://localhost:3000/api/customers/{uuidreturned} \
+  http://localhost:3000/api/customers/${uuidreturned} \
   -H 'content-type: application/json' \
   -d '{"first_name":"John",
   "last_name": "Snow",
@@ -122,9 +109,16 @@ curl -X PUT \
 
 ## Lab 7 - Test Delete API
 
-Use the UUID returned Postman or Curl to delete John Snow
+Use following REST call in Postman or Curl to delete the customer
 
 ```bash
 curl -X DELETE \
-    http://localhost:3000/api/customers/{uuidreturned} 
+    http://localhost:3000/api/customers/${uuidreturned} 
+```
+## Lab 8 - Test Select all API
+Use following REST call in Curl or Postman to get a user list
+
+```bash
+curl -X GET \
+  http://localhost:3000/api/customers/
 ```
