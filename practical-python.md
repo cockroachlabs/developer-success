@@ -8,7 +8,7 @@ Pretty much everything in here can be run on any installation of Python - on the
 
 ## Labs Prerequisites
 
-1. Connection URL to the Cockroach Cloud Free Tier
+1. Connection URL to the Cockroach Cloud Free Tier with admin username/password.
 
 2. You also need:
 
@@ -17,30 +17,40 @@ Pretty much everything in here can be run on any installation of Python - on the
     - The ability to install Python packages with pip
     - [Cockroach SQL client](https://www.cockroachlabs.com/docs/stable/install-cockroachdb-linux)
 
-3. Optional (but advised):
+3. Optional (but strongly advised):
 
     - Jupyter Notebooks
 
-## Installing Jupyter Notebooks
+## Installing and Running Jupyter Notebooks
 
-
-
-## Lab 1 - Setting up your CC Free Tier cluster
-
-If you haven't done so already, setup your CC Free Tier cluster as described in the Getting Started module
-
-We will be setting the COCKROACH_URL environment variable so that we don't have to use the --url option with every command.
-
-Replace <password>, <address> and <cluster-name> with the details for your setup.
-
-```bash
-# Linux / Mac
-> export COCKROACH_URL="postgresql://aw_admin:<password>@<address>:26257?sslmode=require&options=--cluster=<cluster-name>"
-
-# Windows Powershell
-> $Env:COCKROACH_URL = "postgresql://aw_admin:<password>@<address>:26257?sslmode=require&options=--cluster=<cluster-name>"
+Install the jupyter package using pip:
+```
+pip install jupyter
 ```
 
+Create a directory for Jupiter Notebook files to live:
+
+```
+mkdir jupyter
+```
+
+Navigate into to your Jupyter directory and start Notebook:
+
+```
+cd jupyter
+jupyter notebook
+```
+
+If you are running this on your local machine, a browser window will be opened and you will be automatically logged in. 
+If you are running Jupyter Notebooks on a remote server, follow the instructions on this page: https://jupyter-notebook.readthedocs.io/en/stable/public_server.html
+
+## Lab 1 - Practical Python Main Notebook
+
+Download Practical-Python-v1.ipynb and TP2019.csv from https://github.com/cockroachlabs/developer-success/tree/main/data/practical-python into your Jupyter Notebooks directory
+Launch the notebook by refreshing the Jupyter dashboard and clicking on Practical-Python-v1. A new window will open with the selected notebook. The notebook contains all further instructions. 
 
 
-## Lab 2 - Connect to the cluster and create a table
+## Lab 2 - Cockroach Bank App Notebook
+
+Download Cockroach-Bank-App-v1.ipynb from https://github.com/cockroachlabs/developer-success/tree/main/data/practical-python into your Jupyter Notebooks directory
+Launch the notebook by refreshing the Jupyter dashboard and clicking on Practical-Python-v1. A new window will open with the selected notebook. The notebook contains all further instructions. 
