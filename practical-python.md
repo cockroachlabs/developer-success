@@ -42,11 +42,11 @@ jupyter notebook
 ```
 
 If you are running this on your local machine, a browser window will be opened and you will be automatically logged in. 
-If you are running Jupyter Notebooks on a remote server, follow the instructions on this page: https://jupyter-notebook.readthedocs.io/en/stable/public_server.html
+If you are running Jupyter Notebooks on a remote server, follow the instructions on this page: [Running a notebook server](https://jupyter-notebook.readthedocs.io/en/stable/public_server.html)
 
 ## Lab 1 - Practical Python Main Notebook
 
-Download Practical-Python-v1.ipynb and TP2019.csv from https://github.com/cockroachlabs/developer-success/tree/main/data/practical-python into your Jupyter Notebooks directory.
+Download Practical-Python-v1.ipynb and TP2019.csv from [here](https://github.com/cockroachlabs/developer-success/tree/main/data/practical-python) into your Jupyter Notebooks directory.
 
 Launch the notebook by refreshing the Jupyter dashboard and clicking on Practical-Python-v1 - new window will open with the selected notebook. 
 
@@ -55,7 +55,7 @@ The notebook contains all further instructions.
 
 ## Lab 2 - Cockroach Bank App Notebook
 
-Download Cockroach-Bank-App-v1.ipynb from https://github.com/cockroachlabs/developer-success/tree/main/data/practical-python into your Jupyter Notebooks directory.
+Download Cockroach-Bank-App-v1.ipynb from [here](https://github.com/cockroachlabs/developer-success/tree/main/data/practical-python) into your Jupyter Notebooks directory.
 
 Launch the notebook by refreshing the Jupyter dashboard and clicking on Practical-Python-v1 - a new window will open with the selected notebook. 
 
