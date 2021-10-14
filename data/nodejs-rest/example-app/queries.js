@@ -3,6 +3,9 @@ const fs = require('fs')
 const dotenv = require('dotenv')
 dotenv.config()
 const Pool = require('pg').Pool
+
+const ca_cert = process.env.SSL_CERT_CONTENTS ? process.env.SSL : fs.readFileSync(process.env.SSL_CERT)
+
 const pool = new Pool({
   host: process.env.DB_HOST,
   database: process.env.DB_DBNAME,
@@ -10,7 +13,7 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT, 
   ssl: {
-    "ca": fs.readFileSync(process.env.SSL_CERT)
+    "ca": ca_cert
     },
 //   //miliseconds to wait before timing out when connecting a new client
 //   connectionTimeoutMillis: 2000,
