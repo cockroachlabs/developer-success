@@ -6,7 +6,7 @@ CockroachDB supports operation on JSON objects. In these labs, we will get famil
 
 ## Labs Prerequisites
 
-1. Connection URL to the Cockroach Serverless
+1. Connection URL to the Cockroach Serverless cluster.
 
 2. You also need:
 
@@ -119,6 +119,9 @@ SELECT jsonb_each(myblob -> 'myjson_blob' -> 0) FROM jblob WHERE id = 0;
   (c_iattr02,389136665)
   (c_iattr03,145392585)
   [...]
+  (r_price,978)
+  (r_seat,1)
+(98 rows)
 ```
 
 ### jsonb_object_keys()
@@ -140,12 +143,15 @@ SELECT jsonb_object_keys(myblob -> 'myjson_blob' -> 0) FROM jblob WHERE id = 0;
   c_iattr03
   c_iattr04
   [...]
+  r_price
+  r_seat
+(98 rows)
 ```
 
 Cool, good job! We can now drop this table
 
 ```sql
-DROP TABLE IF EXISTS jblob CASCADE;
+DROP TABLE jblob;
 ```
 
 ## Lab 3 - Load table with flattened JSON objects
@@ -203,6 +209,7 @@ LIMIT 5;
   131          |     7
   78           |     6
   148          |     6
+(5 rows)
 ```
 
 Create a query that sums the `r_price` values by `c_base_ap_id` showing the TOP 10 sums of `r_price`.
@@ -229,6 +236,7 @@ LIMIT 10;
   149          |  1996
   60           |  1626
   168          |  1616
+(10 rows)
 ```
 
 ## Lab 5 - Optimize Query Performance with Inverted Indexes
@@ -282,7 +290,7 @@ WHERE myflat @> '{"c_sattr19": "momjzdfu"}';
 Time: 1.132s total (execution 1.079s / network 0.054s)
 ```
 
-1.1s, a bit too slow. Check the query plan
+1.079s, a bit too slow. Check the query plan
 
 ```sql
 EXPLAIN (VERBOSE) SELECT id FROM jflat WHERE myflat @> '{"c_sattr19": "momjzdfu"}';
@@ -357,7 +365,7 @@ SELECT id FROM jflat WHERE myflat @> '{"c_sattr19": "momjzdfu"}';
 Time: 34ms total (execution 2ms / network 32ms)
 ```
 
-34ms! Great improvement!
+2ms! Great improvement!
 
 ## Lab 6 - Joins on JSONB objects
 
