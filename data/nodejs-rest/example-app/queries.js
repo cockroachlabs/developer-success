@@ -10,7 +10,7 @@ const pool = new Pool({
   port: process.env.DB_PORT,
   ssl: {
     "ca": fs.readFileSync(process.env.SSL_CERT)
-    }, 
+    },
 })
 //create a customer
 //raft write
@@ -69,7 +69,7 @@ const deleteCustomer = (req, res)  => {
     })
 }
 //get all customers
-//TODO: add a limit or pagination
+
 const getCustomers = (req, res) => {
     const limit = req.query.limit
     const offset = req.query.offset

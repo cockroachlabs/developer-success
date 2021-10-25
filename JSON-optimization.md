@@ -6,7 +6,7 @@ CockroachDB supports operation on JSON objects. In these labs, we will get famil
 
 ## Labs Prerequisites
 
-1. Connection URL to the Cockroach Cloud Free Tier
+1. Connection URL to the Cockroach Serverless cluster.
 
 2. You also need:
 
@@ -15,49 +15,34 @@ CockroachDB supports operation on JSON objects. In these labs, we will get famil
 
 ## Lab 1 - Load table with big JSON object
 
-Connect to the database to confirm it loaded successfully
-
-```bash
-# download data files
-wget https://raw.githubusercontent.com/cockroachlabs/developer-success/main/data/json-opt/json1.sql
-wget https://raw.githubusercontent.com/cockroachlabs/developer-success/main/data/json-opt/json2.sql
-wget https://raw.githubusercontent.com/cockroachlabs/developer-success/main/data/json-opt/json3.sql
-
-# load just the first file into the database
-cockroach sql --url "postgresql://<yourname>:<password>@[...]" < json1.sql
-
-# now connect to the CockroachDB cluster
-cockroach sql --url "postgresql://<yourname>:<password>@[...]"
-```
-
-Check how many JSON objects were inserted:
+Connect to the database and import the data
 
 ```sql
-USE jsondb;
+CREATE TABLE jblob (
+  id INT8 PRIMARY KEY,
+  myblob JSONB
+);
 
-SHOW TABLES;
+IMPORT INTO jblob 
+  CSV DATA ('https://raw.githubusercontent.com/cockroachlabs/developer-success/main/data/json-opt/blob.tsv')
+  WITH delimiter = e'\t';
 
 SELECT count(*) FROM jblob;
 ```
 
 ```text
-SET
+CREATE TABLE
 
-Time: 32ms total (execution 0ms / network 31ms)
 
-  schema_name | table_name | type  | owner | estimated_row_count | locality
---------------+------------+-------+-------+---------------------+-----------
-  public      | jblob      | table | fabio |                   0 | NULL
+        job_id       |  status   | fraction_completed | rows | index_entries | bytes
+---------------------+-----------+--------------------+------+---------------+---------
+  703969154901606401 | succeeded |                  1 |    1 |             0 | 261106
 (1 row)
 
-Time: 67ms total (execution 34ms / network 33ms)
 
   count
 ---------
       1
-(1 row)
-
-Time: 36ms total (execution 4ms / network 32ms)
 ```
 
 Just 1 row! The entire blob has been added to just 1 row, how useful is this within a database? Not much, but we can use it to test the built-in JSONB functions
@@ -134,6 +119,9 @@ SELECT jsonb_each(myblob -> 'myjson_blob' -> 0) FROM jblob WHERE id = 0;
   (c_iattr02,389136665)
   (c_iattr03,145392585)
   [...]
+  (r_price,978)
+  (r_seat,1)
+(98 rows)
 ```
 
 ### jsonb_object_keys()
@@ -155,49 +143,46 @@ SELECT jsonb_object_keys(myblob -> 'myjson_blob' -> 0) FROM jblob WHERE id = 0;
   c_iattr03
   c_iattr04
   [...]
+  r_price
+  r_seat
+(98 rows)
 ```
 
 Cool, good job! We can now drop this table
 
 ```sql
-DROP TABLE IF EXISTS jblob CASCADE;
+DROP TABLE jblob;
 ```
 
 ## Lab 3 - Load table with flattened JSON objects
 
 Create a table with FLATTENED JSONB objects.
 
-```bash
-# run the second file, json2.sql
-cockroach sql --url "postgresql://<yourname>:<password>@[...]" < json2.sql
-```
-
 ```sql
-USE jsondb;
+CREATE TABLE jflat (
+  id INT PRIMARY KEY, 
+  myflat JSONB
+);
 
-SHOW TABLES;
+IMPORT INTO jflat 
+  CSV DATA ('https://raw.githubusercontent.com/cockroachlabs/developer-success/main/data/json-opt/flat.tsv')
+  WITH delimiter = e'\t';
 
 SELECT count(*) FROM jflat;
 ```
 
 ```text
-SET
+CREATE TABLE
 
-Time: 32ms total (execution 0ms / network 32ms)
 
-  schema_name | table_name | type  | owner | estimated_row_count | locality
---------------+------------+-------+-------+---------------------+-----------
-  public      | jflat      | table | fabio |                   0 | NULL
-(1 row)
+        job_id       |  status   | fraction_completed | rows | index_entries | bytes
+---------------------+-----------+--------------------+------+---------------+---------
+  703970412102647809 | succeeded |                  1 |  110 |             0 | 262491
 
-Time: 67ms total (execution 34ms / network 32ms)
 
   count
 ---------
     110
-(1 row)
-
-Time: 35ms total (execution 4ms / network 31ms)
 ```
 
 The flat file has a total of 110 rows.
@@ -224,6 +209,7 @@ LIMIT 5;
   131          |     7
   78           |     6
   148          |     6
+(5 rows)
 ```
 
 Create a query that sums the `r_price` values by `c_base_ap_id` showing the TOP 10 sums of `r_price`.
@@ -250,30 +236,33 @@ LIMIT 10;
   149          |  1996
   60           |  1626
   168          |  1616
+(10 rows)
 ```
 
 ## Lab 5 - Optimize Query Performance with Inverted Indexes
 
 Insert more data into the `jflat` table:
 
-```bash
-# run the third file, json3.sql
-# this will take about a minute
-cockroach sql --url "postgresql://<yourname>:<password>@[...]" < json3.sql
-```
-
 Let's review how many rows we have now in total
 
 ```sql
-USE jsondb;
+IMPORT INTO jflat 
+  CSV DATA ('https://raw.githubusercontent.com/cockroachlabs/developer-success/main/data/json-opt/flat2.tsv')
+  WITH delimiter = e'\t';
+
 
 SELECT COUNT(*) FROM jflat;
 ```
 
 ```text
+        job_id       |  status   | fraction_completed | rows  | index_entries |  bytes
+---------------------+-----------+--------------------+-------+---------------+-----------
+  703970899712606209 | succeeded |                  1 | 15829 |             0 | 37836612
+
+
   count
 ---------
-   5110
+  15939
 ```
 
 Very good, we've a lot more data to work with!
@@ -289,16 +278,19 @@ WHERE myflat @> '{"c_sattr19": "momjzdfu"}';
 
 ```text
    id
---------
-  3358
-  3944
-  4179
-(3 rows)
+---------
+   3358
+   3944
+   4179
+   6475
+  16007
+  16501
+(6 rows)
 
-Time: 2.011s total (execution 1.811s / network 0.200s)
+Time: 1.132s total (execution 1.079s / network 0.054s)
 ```
 
-2s, a bit too slow. Check the query plan
+1.079s, a bit too slow. Check the query plan
 
 ```sql
 EXPLAIN (VERBOSE) SELECT id FROM jflat WHERE myflat @> '{"c_sattr19": "momjzdfu"}';
@@ -306,22 +298,22 @@ EXPLAIN (VERBOSE) SELECT id FROM jflat WHERE myflat @> '{"c_sattr19": "momjzdfu"
 
 ```text
                                             info
---------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------
   distribution: local
   vectorized: true
 
   • project
   │ columns: (id)
-  │ estimated row count: 457
+  │ estimated row count: 1,771
   │
   └── • filter
       │ columns: (id, myflat)
-      │ estimated row count: 457
+      │ estimated row count: 1,771
       │ filter: myflat @> '{"c_sattr19": "momjzdfu"}'
       │
       └── • scan
             columns: (id, myflat)
-            estimated row count: 4,110 (100% of the table; stats collected 33 seconds ago)
+            estimated row count: 15,939 (100% of the table; stats collected 32 seconds ago)
             table: jflat@primary
             spans: FULL SCAN
 ```
@@ -348,7 +340,7 @@ EXPLAIN (VERBOSE) SELECT id FROM jflat WHERE myflat @> '{"c_sattr19": "momjzdfu"
 
   • scan
     columns: (id)
-    estimated row count: 568 (11% of the table; stats collected 24 seconds ago)
+    estimated row count: 1,771 (11% of the table; stats collected 1 minute ago)
     table: jflat@idx_json_inverted
     spans: /"c_sattr19"/"momjzdfu"-/"c_sattr19"/"momjzdfu"/PrefixEnd
 ```
@@ -361,16 +353,19 @@ SELECT id FROM jflat WHERE myflat @> '{"c_sattr19": "momjzdfu"}';
 
 ```text
    id
---------
-  3358
-  3944
-  4179
-(3 rows)
+---------
+   3358
+   3944
+   4179
+   6475
+  16007
+  16501
+(6 rows)
 
-Time: 33ms total (execution 2ms / network 31ms)
+Time: 34ms total (execution 2ms / network 32ms)
 ```
 
-33ms! Great improvement!
+2ms! Great improvement!
 
 ## Lab 6 - Joins on JSONB objects
 
@@ -413,15 +408,11 @@ FROM jflat JOIN price
   114
   114
   114
-  114
+  [...]
+  978
+  978
   484
-  114
-  978
-  114
-  978
-  114
-  114
-(15 rows)
+(61 rows)
 ```
 
 While joins are possible on JSONB object, it is recommanded to extract the join field into a **computed column** for efficiency.
@@ -446,13 +437,14 @@ GROUP BY 1,2;
    attr19  | seat | count | sum
 -----------+------+-------+-------
   momjzdfu | 1    |     2 | 1091
-  momjzdfu | 0    |     1 |  659
-(2 rows)
+  momjzdfu | 0    |     3 | 1747
+  momjzdfu | 2    |     1 |  865
+(3 rows)
 
-Time: 518ms total (execution 486ms / network 31ms)
+Time: 386ms total (execution 354ms / network 32ms)
 ```
 
-Let's pull the query plan
+354ms, a bit slow. Let's pull the query plan
 
 ```sql
 EXPLAIN (VERBOSE)
@@ -466,33 +458,33 @@ GROUP BY 1,2;
 ```
 
 ```text
-                                             info
-----------------------------------------------------------------------------------------------
+                                              info
+------------------------------------------------------------------------------------------------
   distribution: local
   vectorized: true
 
   • group
   │ columns: (attr19, seat, count, sum)
-  │ estimated row count: 1,703
+  │ estimated row count: 5,313
   │ aggregate 0: count_rows()
   │ aggregate 1: sum(column7)
   │ group by: attr19, seat
   │
   └── • render
       │ columns: (column7, attr19, seat)
-      │ estimated row count: 1,703
+      │ estimated row count: 5,313
       │ render column7: (myflat->>'r_price')::INT8
       │ render attr19: myflat->>'c_sattr19'
       │ render seat: myflat->>'r_seat'
       │
       └── • filter
           │ columns: (myflat)
-          │ estimated row count: 1,703
+          │ estimated row count: 5,313
           │ filter: (myflat->>'c_sattr19') LIKE '%mom%'
           │
           └── • scan
                 columns: (myflat)
-                estimated row count: 5,110 (100% of the table; stats collected 1 minute ago)
+                estimated row count: 15,939 (100% of the table; stats collected 2 minutes ago)
                 table: jflat@primary
                 spans: FULL SCAN
 ```
@@ -566,17 +558,14 @@ GROUP BY 1,2;
   │ aggregate 0: count_rows()
   │ aggregate 1: sum(r_price)
   │ group by: r_seat, attr19
-  │ ordered: +attr19
   │
   └── • filter
       │ columns: (r_seat, attr19, r_price)
-      │ ordering: +attr19
       │ estimated row count: 330 (missing stats)
       │ filter: attr19 LIKE '%mom%'
       │
       └── • scan
             columns: (r_seat, attr19, r_price)
-            ordering: +attr19
             estimated row count: 990 (missing stats)
             table: jflat_new@jflat_new_attr19_idx
             spans: /!NULL-
@@ -598,13 +587,14 @@ GROUP BY 1,2;
    attr19  | r_seat | count | sum
 -----------+--------+-------+-------
   momjzdfu | 1      |     2 | 1091
-  momjzdfu | 0      |     1 |  659
-(2 rows)
+  momjzdfu | 0      |     3 | 1747
+  momjzdfu | 2      |     1 |  865
+(3 rows)
 
-Time: 43ms total (execution 10ms / network 34ms)
+Time: 55ms total (execution 23ms / network 32ms)
 ```
 
-Very good, down to 43ms, good job!
+Very good, down to 23ms, good job!
 
 Congratulations, you reached the end of the labs!
 
@@ -613,9 +603,9 @@ Congratulations, you reached the end of the labs!
 Drop the database if you want to return to the previous state
 
 ```sql
-USE defaultdb;
-DROP DATABASE IF EXISTS jsondb CASCADE;
-SHOW DATABASES;
+DROP TABLE jflat;
+DROP TABLE jflat_new;
+DROP TABLE price;
 ```
 
 ## References
