@@ -1,5 +1,5 @@
-CREATE DATABASE devsuccess;
-USE devsuccess;
+CREATE DATABASE development;
+USE development;
 
 CREATE TABLE public.customer (
     customer_id uuid DEFAULT gen_random_uuid() PRIMARY KEY NOT NULL,

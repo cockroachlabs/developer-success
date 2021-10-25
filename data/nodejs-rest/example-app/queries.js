@@ -1,4 +1,3 @@
-
 const fs = require('fs')
 const dotenv = require('dotenv')
 dotenv.config()
@@ -8,16 +7,10 @@ const pool = new Pool({
   database: process.env.DB_DBNAME,
   user: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT, 
+  port: process.env.DB_PORT,
   ssl: {
     "ca": fs.readFileSync(process.env.SSL_CERT)
-    },
-//   //miliseconds to wait before timing out when connecting a new client
-//   connectionTimeoutMillis: 2000,
-//   //milliseconds a client must sit idle in the pool and not be checked out
-//   idleTimeoutMillis: 600000,
-  //maximum number of clients  
-  max: 4
+    }, 
 })
 //create a customer
 //raft write
@@ -78,8 +71,24 @@ const deleteCustomer = (req, res)  => {
 //get all customers
 //TODO: add a limit or pagination
 const getCustomers = (req, res) => {
-    pool.query('SELECT * FROM customer AS OF SYSTEM TIME follower_read_timestamp() \
-    ORDER BY last_update DESC', (error, results) => {
+    const limit = req.query.limit
+    const offset = req.query.offset
+    pool.query('SELECT * FROM customer ORDER BY last_update DESC LIMIT $1 OFFSET $2', 
+        [limit, offset], (error, results) => {
+        if (error) {
+            throw error
+        }
+        res.status(200).json(results.rows)
+    })
+}
+//get all customers by Time Travel
+//TODO: add a limit or pagination
+const getCustomersTimeTravel = (req, res) => {
+    const aost = req.query.aost
+    console.log(aost)
+    console.log(`SELECT * FROM customer AS OF SYSTEM TIME -'${aost}'::INTERVAL ORDER BY`)
+    pool.query('SELECT * FROM customer AS OF SYSTEM TIME upper($1) * INTERVAL \'1 second\' ORDER BY last_update DESC', ['30 second'],
+            (error, results) => {
         if (error) {
             throw error
         }
@@ -92,5 +101,6 @@ module.exports = {
     getCustomerById,
     updateCustomer,
     deleteCustomer,
-    getCustomers
+    getCustomers,
+    getCustomersTimeTravel
   }

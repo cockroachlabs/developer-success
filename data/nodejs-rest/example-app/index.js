@@ -19,5 +19,6 @@ app.get('/api/customers/:id', db.getCustomerById)
 app.put('/api/customers/:id', db.updateCustomer)
 app.delete('/api/customers/:id', db.deleteCustomer)
 app.get('/api/customers', db.getCustomers)
+app.get('/api/customersTimeTravel', db.getCustomersTimeTravel)
 app.listen(port, () => console.log(`Listening on port ${port}`))
 
