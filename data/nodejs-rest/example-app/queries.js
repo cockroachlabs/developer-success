@@ -84,26 +84,11 @@ const getCustomers = (req, res) => {
         res.status(200).json(results.rows)
     })
 }
-//get all customers by Time Travel
-//TODO: add a limit or pagination
-const getCustomersTimeTravel = (req, res) => {
-    const aost = req.query.aost
-    console.log(aost)
-    console.log(`SELECT * FROM customer AS OF SYSTEM TIME -'${aost}'::INTERVAL ORDER BY`)
-    pool.query('SELECT * FROM customer AS OF SYSTEM TIME upper($1) * INTERVAL \'1 second\' ORDER BY last_update DESC', ['30 second'],
-            (error, results) => {
-        if (error) {
-            throw error
-        }
-        res.status(200).json(results.rows)
-    })
-}
 //
 module.exports = {
     createCustomer,
     getCustomerById,
     updateCustomer,
     deleteCustomer,
-    getCustomers,
-    getCustomersTimeTravel
+    getCustomers
   }
