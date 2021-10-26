@@ -20,7 +20,8 @@ Replace username, password, cluster name in the connections string.
 If you created a cluster on AWS, the cluster URL will look slightly different.
 
 ```bash
-cockroach sql --url 'postgresql://username:password@free-tier.gcp-us-central1.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full&sslrootcert=directory-to/root.crt&options=--cluster%3Dcluster-name'
+cd data/nodejs-rest/
+cockroach sql --url 'postgresql://username:password@free-tier.gcp-us-central1.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full&sslrootcert=directory-to/root.crt&options=--cluster%3Dcluster-name' < schema.sql
 ```
 
 ## Lab 2 - Set up local Node.js environment
