@@ -11,3 +11,4 @@
 - [Query Optimization](query-optimization.md)
 - [Node.js REST API](nodejs-rest.md)
 - [AdventureWorks](adventureworks.md)
+- [Accessing Logs in Cockroach Cloud](Logging.md)
