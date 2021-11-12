@@ -103,21 +103,116 @@ If you have an existing Postgresql database, running `pg_dump` to dump the datab
 Login to your Postgresql database server and run:
 
 ```bash
-pg_dump DATABASE > /tmp/pgdump.sql
+pg_dump DATABASE > /tmp/cw-pgdump.sql
 ```
 
 If you cannot login to the Postgresql database directly and need to do a remote dump, you can do:
 
 ```bash
-pg_dump -h HOSTNAME -U USERNAME -W PASSWORD cw > /tmp/cw.sql
+pg_dump -h HOSTNAME -U USERNAME -W PASSWORD cw > /tmp/cw-pgdump.sql
 ```
 
 For this workshop, an existing `pgdump` has been provided in the `data/` directory of the repository. It is named `cw.sql`.
 
 
-## Upload the pg_dump to the newly created cluster
+## Upload the pgdump to the newly created cluster
+
+To upload the `pgdump` to the newly created cluster, you will use the cluster file storage. If you have set a spending limit for your serverless cluster above $0 and entered a credit card, you can also use a network-based file storage option, such as S3. However, cluster file storage is available to all clusters regardless of spending limit.
+
+To access cluster file storage, you will use the `userfile` command available in the `cockroach` client.
+
+CockroachDB Serverless supports the following commands for managing cluster `userfiles`:
+
+- `cockroach userfile upload`
+- `cockroach userfile list`
+- `cockroach userfile get`
+- `cockroach userfile delete`
+
+Start by listing the files available on your cluster:
+
+```bash
+# note: if you have not set the $COCKROACH_URL environment variable
+#  you will need to include the --url parameter
+cockroach userfile list
+```
+
+You will see an error indicating that the userfile relation does not exist. This is only because we have not yet uploaded a userfile.
+
+Next, upload the `pgdump` file:
+
+```bash
+# note: if you have not set the $COCKROACH_URL environment variable
+#  you will need to include the --url parameter
+cockroach userfile upload cw-pgdump.sql 
+```
+
+You should see a message that it was successfully uploaded with the path:
+
+```
+successfully uploaded to userfile://defaultdb.public.userfiles_migrate/cw-pgdump.sql
+```
+
+You may also see a warning about the `--url` parameter specifying a database. This warning can be ignored.
+
+Now try to list the userfiles:
+
+```bash
+cockroach userfile list
+```
+
+The command should output the list of your cluster userfiles.
+
 
 ## Run a database import from the pg_dump into the CockroachDB Serverless cluster
+
+Now that the `pgdump` has been uploaded to the cluster, you can import its contents.
+
+Connect using the `cockroach` client using the `migrate` user:
+
+```bash
+# note: if you have not set the $COCKROACH_URL environment variable
+#  you will need to include the --url parameter
+cockroach sql
+```
+
+Once connected, change to the `cw` database (if you are not already connected to it) and run the `IMPORT` command:
+
+```sql
+USE cw;
+IMPORT PGDUMP "userfile:///cw-pgdump.sql";
+```
+
+You'll noticed that you'll get the following error:
+
+```sql
+ERROR: unsupported *tree.SetVar statement: SET statement_timeout = 0
+HINT: To ignore unsupported statements and log them for review post IMPORT, see the options listed in the docs: https://www.cockroachlabs.com/docs/stable/import.html#import-options
+```
+
+To fix that problem, include the `WITH ignore_unsupported_statements` option:
+
+```sql
+IMPORT PGDUMP "userfile:///cw-pgdump.sql"; WITH ignore_unsupported_statements;
+```
+
+Success! The database is successfully imported. To take a look around you can run a few SQL commands:
+
+```sql
+-- Show all tables in the cw database
+SHOW TABLES;
+
+-- Describe table
+\d area;
+
+-- Alternatively, you can use the show create table syntax
+SHOW CREATE TABLE daily;
+```
+
+---
+---
+---
+---
+---
 
 
 CockroachDB Serverless provides a wide range of data migration options, of which a subset is available in the CockroachDB Serverless free tier.
