@@ -24,7 +24,7 @@ The database that we are using is a Postgresql database. To make it easier for d
 * `state`: US states.
 * `country`: Countries. Even though ClimbingWeather.com currently only has climbing areas in the United States, the table is used in the weather API.
 * `system_setting`: A table of key-value combinations for system settings.
-* `area_zip_code_distnace`: A pre-calculated table of zip code distances for searching climbing areas by US zip code.
+* `area_zip_code_distance`: A pre-calculated table of zip code distances for searching climbing areas by US zip code.
 * `clim81_station_monthly`: Monthly averages from weather observation stations.
 
 These tables are the bare minimum for running the ClimbingWeather.com API that powers the websites and mobile apps.
@@ -182,6 +182,8 @@ This is the full file path to the cluster file. As we will see below, you can om
 
 You may also see a warning about the `--url` parameter specifying a database. This warning can be ignored. If you don't want to see the warning, just remove the database name from the connection string.
 
+Note that file cluster storage counts against your overall available cluster storage. At the time of this workshop, the free storage is 5gb. If you uploaded a 1gb file, then you would only have 4gb of storage remaining. You can free up this storage after migration by deleting the file.
+
 Now try to list the userfiles:
 
 ```bash
@@ -194,7 +196,7 @@ The command should output the list of files stored in cluster file storage.
 
 Now that the `pg_dump` backup has been uploaded to the cluster, you can import its contents.
 
-Connect using the `cockroach` client using the `migrate` user:
+Connect using the `cockroach` client as the `migrate` user:
 
 ```bash
 # note: if you have not set the $COCKROACH_URL environment variable
@@ -216,10 +218,10 @@ ERROR: unsupported *tree.SetVar statement: SET statement_timeout = 0
 HINT: To ignore unsupported statements and log them for review post IMPORT, see the options listed in the docs: https://www.cockroachlabs.com/docs/stable/import.html#import-options
 ```
 
-To fix that problem, include the `WITH ignore_unsupported_statements` option:
+To fix that problem, include the `WITH ignore_unsupported_statements` option. You can also use the `log_ignored_statements` option to log ignored statements to cluster file storage.
 
 ```sql
-IMPORT PGDUMP "userfile:///cw-pgdump.sql"; WITH ignore_unsupported_statements;
+IMPORT PGDUMP "userfile:///cw-pgdump.sql" WITH ignore_unsupported_statements;
 ```
 
 Success! The database is successfully imported. To take a look around you can run a few SQL commands:
@@ -234,4 +236,53 @@ SHOW TABLES;
 -- Alternatively, you can use the show create table syntax
 SHOW CREATE TABLE daily;
 ```
+
+## What's Next
+
+You have successfully imported a Postgresql database into CockroachDB Serverless.
+
+This workshop has provided a very basic approach to importing data into CockroachDB Serverless.
+
+### Documentation
+
+[Migration Overview](https://www.cockroachlabs.com/docs/v21.1/migration-overview.html) - official migration documentation for CockroachDB 21.1
+
+
+
+
+### Other Supported formats
+
+* MySQL backup using `mysqldump`
+* CSV/TSV
+* Avro
+* ESRI Shapefiles (`.shp`) (using `shp2pgsql`)
+* OpenStreetMap data files (`.pbf`) (using `osm2pgsql`)
+* GeoPackage data files (`.gpkg`) (using `ogr2ogr`)
+* GeoJSON data files (`.geojson`) (using `ogr2ogr`)
+
+CockroachDB Serverless supports additional 
+
+
+Best practices and optimizations
+
+[Best Practices Docmentation](https://www.cockroachlabs.com/docs/v21.1/import-performance-best-practices.html)
+
+* Split data into multiple files
+* Choose a performant import format
+  * CSV or Delimited data
+  * AVRO
+  * MYSQLDUMP
+  * PGDUMP
+* Provide the table schema inline
+* Import the schema separately from the data
+
+
+Network file storage
+
+[Cloud Storage](https://www.cockroachlabs.com/docs/v21.1/use-cloud-storage-for-bulk-operations)
+* Amazon
+* Azure
+* Google Cloud
+* http
+* NFS/local
 
