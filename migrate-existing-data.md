@@ -16,7 +16,7 @@ To demonstrate this, we will be using a real production database used to power [
 
 ## Quick Tour of the Database
 
-The database that we are using is a Postgresql database. To make it easier for demonstration purposes, it has been slimmed down to 7 key tables:
+The database that we are using is a Postgresql database. To make it easier for demonstration purposes, it has been slimmed down to 9 key tables:
 
 * `area`: Climbing areas in the United States with a unique id, latitude/longitude, name and a handful of other fields.
 * `daily`: Daily weather forecasts. Each row references a specific `area`, date and a number of weather data points, such as high and low temperatures.
@@ -25,6 +25,7 @@ The database that we are using is a Postgresql database. To make it easier for d
 * `country`: Countries. Even though ClimbingWeather.com currently only has climbing areas in the United States, the table is used in the weather API.
 * `system_setting`: A table of key-value combinations for system settings.
 * `area_zip_code_distance`: A pre-calculated table of zip code distances for searching climbing areas by US zip code.
+* `clim81_station`: Weather observation stations
 * `clim81_station_monthly`: Monthly averages from weather observation stations.
 
 These tables are the bare minimum for running the ClimbingWeather.com API that powers the websites and mobile apps.
@@ -221,8 +222,46 @@ HINT: To ignore unsupported statements and log them for review post IMPORT, see 
 To fix that problem, include the `WITH ignore_unsupported_statements` option. You can also use the `log_ignored_statements` option to log ignored statements to cluster file storage.
 
 ```sql
-IMPORT PGDUMP "userfile:///cw-pgdump.sql" WITH ignore_unsupported_statements;
+IMPORT PGDUMP "userfile:///cw-pgdump.sql" WITH ignore_unsupported_statements, log_ignored_statements='userfile:///cw-pgdump.log';
 ```
+
+The first error that we encounter is about `IMPORT PGDUMP` nots supporting user defined types:
+
+```
+ERROR: IMPORT PGDUMP does not support user defined types; please remove all CREATE TYPE statements and their usages from the dump file
+```
+
+At this time, it user defined types have to be created prior to running the `IMPORT` command. 
+
+There is one user defined type in the backup, so we'll add that manually. Then, exit out of the `cockroach` client.
+
+```sql
+CREATE TYPE public.system_log_severity AS ENUM (
+    'info',
+    'warning',
+    'error'
+);
+\q
+```
+
+Next, we'll comment out the `CREATE TYPE` statment in the backup file and re-upload. Then, re-connect using `cockroach sql`.
+
+```bash
+# First edit the file, using the --- at the start of the
+# lines that include the CREATE TYPE statement
+# then delete and upload the file
+cockroach userfile delete cw-pgdump.sql
+cockroach userfile upload cw-pgdump.sql
+cockroach sql
+```
+
+Re-connect with `cockroach sql` and try the import again:
+
+```sql
+IMPORT PGDUMP "userfile:///cw-pgdump.sql" WITH ignore_unsupported_statements, log_ignored_statements='userfile:///cw-pgdump.log';
+```
+
+You should see output that the import job completed successfully.
 
 Success! The database is successfully imported. To take a look around you can run a few SQL commands:
 
@@ -235,6 +274,30 @@ SHOW TABLES;
 
 -- Alternatively, you can use the show create table syntax
 SHOW CREATE TABLE daily;
+```
+
+
+Next, you can inspect the log file created for unsupported statements. Exit the `cockroach` client, list usefiles and then download the log file.
+
+```bash
+# first exit the cockroach client using \q
+cockroach userfile list
+cockroach userfile get [USERFILE PATH]
+```
+
+The log file should look similar to the following. None of the unsupported statements raises concern.
+
+```
+SET statement_timeout = 0: unsupported by IMPORT
+SET lock_timeout = 0: unsupported by IMPORT
+SET idle_in_transaction_session_timeout = 0: unsupported by IMPORT
+SET client_encoding = 'UTF8': unsupported by IMPORT
+SET standard_conforming_strings = "on": unsupported by IMPORT
+unsupported function call: set_config in stmt: SELECT set_config('search_path', '', false): unsupported by IMPORT
+SET check_function_bodies = false: unsupported by IMPORT
+SET xmloption = content: unsupported by IMPORT
+SET client_min_messages = warning: unsupported by IMPORT
+SET row_security = off: unsupported by IMPORT
 ```
 
 ## What's Next
