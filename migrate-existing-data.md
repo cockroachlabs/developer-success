@@ -310,11 +310,11 @@ This workshop has provided a very basic approach to importing data into Cockroac
 
 [Migration Overview](https://www.cockroachlabs.com/docs/v21.1/migration-overview.html) - official migration documentation for CockroachDB 21.1
 
+### Supported formats
 
+The `IMPORT` command supports the following formats:
 
-
-### Other Supported formats
-
+* Postgresql backup using `pg_dump`
 * MySQL backup using `mysqldump`
 * CSV/TSV
 * Avro
@@ -323,10 +323,7 @@ This workshop has provided a very basic approach to importing data into Cockroac
 * GeoPackage data files (`.gpkg`) (using `ogr2ogr`)
 * GeoJSON data files (`.geojson`) (using `ogr2ogr`)
 
-CockroachDB Serverless supports additional 
-
-
-Best practices and optimizations
+### Best practices and optimizations
 
 [Best Practices Docmentation](https://www.cockroachlabs.com/docs/v21.1/import-performance-best-practices.html)
 
@@ -340,9 +337,13 @@ Best practices and optimizations
 * Import the schema separately from the data
 
 
-Network file storage
+### Network file storage
 
-[Cloud Storage](https://www.cockroachlabs.com/docs/v21.1/use-cloud-storage-for-bulk-operations)
+In addition to the cluster file storage described in the workshop, cloud storage can be used if you increase the spend limit and enter a credit card.
+
+[Cloud Storage Documentation](https://www.cockroachlabs.com/docs/v21.1/use-cloud-storage-for-bulk-operations)
+
+Cloud Storage Providers
 * Amazon
 * Azure
 * Google Cloud
