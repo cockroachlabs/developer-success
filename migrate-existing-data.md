@@ -2,60 +2,83 @@
 
 ## Overview
 
-As application developers, we often have existing applications and databases that we want to migrate into CockroachDB Serverless. This might be a way to try out CockroachDB Serverless or simply because we want to take advantage of the power of CockroachDB Serverless for an existing application.
+Application developers often have existing applications and databases that they want to migrate into CockroachDB Serverless. CockroachDB Serverless makes this easy by providing out-of-the-box migration options. This enables developers to quickly move an application to CockroachDB Serverless and take advantage of the power and convenience of a serverless database.
 
-This workshop is designed to demonstrate how an application developer can migrate an existing Postgresql database to CockroachDB is serveral easy steps.
+This workshop is designed to demonstrate how an application developer can migrate an existing Postgresql database to CockroachDB Serverless in several easy steps.
 
-Steps:
-* Spin up a new CockroachDB Serverless cluster 
-* Setup a databasqe user for migration
-* Create a `pgdump` of an existing Postgresql database
-* Upload the `pgdump` to the newly created cluster
-* Run a database import from the `pgdump` into the new CockroachDB Serverless cluster
+1. Spin up a new CockroachDB Serverless cluster 
+2. Setup a databasqe user for migration
+3. Create a `pg_dump` backup of an existing Postgresql database
+4. Upload the `pg_dump` backup to the newly created cluster
+5. Run a database import from the `pg_dump` backup into the new CockroachDB Serverless cluster
+
+To demonstrate this, we will be using a real production database used to power [ClimbingWeather.com](https://www.climbingweather.com). [ClimbingWeather.com](https://www.climbingweather.com) is a website designed to provide weather forecasts for climbing areas in the United States.
+
+## Quick Tour of the Database
+
+The database that we are using is a Postgresql database. To make it easier for demonstration purposes, it has been slimmed down to 9 key tables:
+
+* `area`: Climbing areas in the United States with a unique id, latitude/longitude, name and a handful of other fields.
+* `daily`: Daily weather forecasts. Each row references a specific `area`, date and a number of weather data points, such as high and low temperatures.
+* `hourly`: Hourly weather forecasts. Each row references a specific `area`, date/time and a number of weather data points.
+* `state`: US states.
+* `country`: Countries. Even though ClimbingWeather.com currently only has climbing areas in the United States, the table is used in the weather API.
+* `system_setting`: A table of key-value combinations for system settings.
+* `area_zip_code_distance`: A pre-calculated table of zip code distances for searching climbing areas by US zip code.
+* `clim81_station`: Weather observation stations
+* `clim81_station_monthly`: Monthly averages from weather observation stations.
+
+These tables are the bare minimum for running the ClimbingWeather.com API that powers the websites and mobile apps.
+
 
 ## Spin up a new CockroachDB Serverless cluster
 
-To spin up a new CockroachDB Serverless cluster, go to https://cockroachlabs.cloud and login to an existing account or create one.
+Before we get started, you'll need to create a CockroachDB Serverless cluster.
 
-After you are logged in, click the "Create Cluster" button.
+To sign up for free (or login to an existing account), go to https://cockroachlabs.cloud.
 
-Select the "Serverless" plan.
+After you are logged in, do the following:
 
-Select a cloud provider and set a $0 spending limit.
-
-You will automatically be assigned a name for your cluster. You can change this name if you want to.
-
-Click "Create your free cluster".
+1. Click the "Create Cluster" button.
+2. Select the "Serverless" plan.
+3. Select a cloud provider
+4. Set a $0 spending limit (the default)
+5. Enter a name (or use the one automatically generated)
+6. Click "Create your free cluster"
 
 The cluster should take no more than 10-15 seconds to create.
 
 Once your cluster is created, you will be presented with the "Connection Info". You can always access this information later by clicking the "Connect" button from your cluster page.
 
-Download the `cockroach` binary if you don't have it locally installed. This will install the latest version of the `cockroach` database client on your machine.
+In the "Connection Info" window make sure to do the following:
 
-Download the CA certificate that is needed to connect to your cluster. Don't skip this step since you will not be able to connect to your cluster without the CA certificate. The `curl` command will automatically download and save it to your local machine.
+1. Download and install the `cockroach` binary. You will be using the `cockroach` binary to connect to your cluster.
+2. Download the CA certificate. Don't skip this step since you will not be able to connect to your cluster without the CA certificate. The `curl` command will automatically download and save it to your local machine.
+3. Copy and the connection string. This includes your password. The password has been automatically generated for you. Make sure to write down it down or store it in a password manager, as it will not be displayed again. If you lose your password, you can always reset it but you will be able to view your it again.
 
-Copy the connection string which will include your password. The password has been automatically generated for you. Make sure to write down your password or store it in a password manager, as it will not be displayed again. If you lose your password, you can always reset it for the user but you cannot view your current password.
+Nice work! You are ready to prepare the cluster for migration by creating a database and setting up a migration user.
 
 ## Setup a database and a user for migration
 
-Next, you will create a database user for the migration process. The user that was automatically created when you setup your cluster is an admin user. It is good practice to create a separate user for migration.
+Next, you will create a database on the cluster and create a database user for the migration process. The user that was automatically created when you setup your cluster is an admin user. It is good practice to create a separate user for migration.
 
-Login to your cluster from the cluster by running the connection string that was provided in the "Connection Info" window.
+Login to your cluster by running the connection string that was provided in the "Connection Info" window. For this step, you will be using the inital admin user created for you.
 
-It will look something like this:
+The connection string will look similar to the following. The username, password and cluster name will be the ones you just created. For example, this connection string has the username `jon`, password `XXXXXXXXXXX` and cluster name `vague-beaver-1226`.
 
 ```bash
 cockroach sql --url 'postgresql://jon:XXXXXXXXXXX@free-tier4.aws-us-west-2.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full&sslrootcert='$HOME'/.postgresql/root.crt&options=--cluster%3Dvague-beaver-1226'
 ```
 
-After you are connected to the cluster, you should see a SQL prompt.
+After you are connected to the cluster, you should see a SQL prompt. At the SQL prompt, issue the `CREATE DATABASE` statement:
 
 ```sql
 CREATE DATABASE cw;
 ```
 
-Create a user for migration:
+Great! You have created a new database.
+
+Now let's create the migration user.
 
 ```sql
 -- create user
@@ -74,9 +97,9 @@ SHOW GRANTS ON DATABASE cw;
 \q
 ```
 
-Next, you'll want to make sure that you can connect with the user and we'll save the connection URL for the rest of the workshop.
+Let's verify that you can connect with the newly created user. To make connecting easier, you can save the connection URL in an environment variables that `cockroach` will recognize. This will be used for the rest of the workshop.
 
-Take your connection string and replace the database with `cw` the `jon:XXXXXXX` part (yours will have a different username) with `migrate:migrate1234` and try re-connecting to the cluster.
+Take your connection string and replace the database with `cw` the `jon:XXXXXXX` part (yours will have a different username) with `migrate:migrate1234` and try re-connecting to the cluster. Make sure you have also correctly set the cluster name.
 
 ```bash
 cockroach sql --url 'postgresql://migrate:migrate1234@free-tier4.aws-us-west-2.cockroachlabs.cloud:26257/cw?sslmode=verify-full&sslrootcert='$HOME'/.postgresql/root.crt&options=--cluster%3Dvague-beaver-1226'
@@ -96,32 +119,36 @@ cockroach sql
 
 You should be logged into your cluster.
 
-## Create a pgdump of an existing Postgresql database
+Remember that on most operating systems the environment variable will only apply to the current session. If you open a new terminal window, you'll have to repeat the `export` command. Alternatively, you could set it in your `.bashrc` or `.zshrc` file so it is set on each new session.
 
-If you have an existing Postgresql database, running `pg_dump` to dump the database is easy.
+## Create a pg_dump backup of the Postgresql database
 
-Login to your Postgresql database server and run:
+If you have an existing Postgresql database, running `pg_dump` to backup the database is easy.
+
+Log in to your Postgresql database server and run the following command, replacing DATABASE with your database name:
 
 ```bash
 pg_dump DATABASE > /tmp/cw-pgdump.sql
 ```
 
-If you cannot login to the Postgresql database directly and need to do a remote dump, you can do:
+If you cannot login to the Postgresql database directly and need to do a remotely run the `pg_dump` command, you can include a parameter for the HOSTNAME:
 
 ```bash
 pg_dump -h HOSTNAME -U USERNAME -W PASSWORD cw > /tmp/cw-pgdump.sql
 ```
 
-For this workshop, an existing `pgdump` has been provided in the `data/` directory of the repository. It is named `cw.sql`.
+For this workshop, an existing `pg_dump` backup has been provided in the `data/` directory of the repository. It is named `cw-pgdump.sql`.
 
 
-## Upload the pgdump to the newly created cluster
+## Upload the pg_dump backup to the newly created cluster
 
-To upload the `pgdump` to the newly created cluster, you will use the cluster file storage. If you have set a spending limit for your serverless cluster above $0 and entered a credit card, you can also use a network-based file storage option, such as S3. However, cluster file storage is available to all clusters regardless of spending limit.
+To upload the `pg_dump` backup to the newly created cluster, you will use the cluster's local file storage.
+
+If you have set a spending limit for your serverless cluster above $0 and entered a credit card, you can also use a network-based file storage option, such as S3. However, cluster file storage is available to all clusters regardless of spending limit.
 
 To access cluster file storage, you will use the `userfile` command available in the `cockroach` client.
 
-CockroachDB Serverless supports the following commands for managing cluster `userfiles`:
+CockroachDB Serverless supports the following commands for managing cluster file storage:
 
 - `cockroach userfile upload`
 - `cockroach userfile list`
@@ -138,7 +165,7 @@ cockroach userfile list
 
 You will see an error indicating that the userfile relation does not exist. This is only because we have not yet uploaded a userfile.
 
-Next, upload the `pgdump` file:
+Next, upload the `pg_dump` backup:
 
 ```bash
 # note: if you have not set the $COCKROACH_URL environment variable
@@ -146,13 +173,17 @@ Next, upload the `pgdump` file:
 cockroach userfile upload cw-pgdump.sql 
 ```
 
-You should see a message that it was successfully uploaded with the path:
+You should see a message that it was successfully uploaded with the path to the file:
 
 ```
 successfully uploaded to userfile://defaultdb.public.userfiles_migrate/cw-pgdump.sql
 ```
 
-You may also see a warning about the `--url` parameter specifying a database. This warning can be ignored.
+This is the full file path to the cluster file. As we will see below, you can omit the first part of this path using the `///` syntax.
+
+You may also see a warning about the `--url` parameter specifying a database. This warning can be ignored. If you don't want to see the warning, just remove the database name from the connection string.
+
+Note that file cluster storage counts against your overall available cluster storage. At the time of this workshop, the free storage is 5gb. If you uploaded a 1gb file, then you would only have 4gb of storage remaining. You can free up this storage after migration by deleting the file.
 
 Now try to list the userfiles:
 
@@ -160,14 +191,13 @@ Now try to list the userfiles:
 cockroach userfile list
 ```
 
-The command should output the list of your cluster userfiles.
+The command should output the list of files stored in cluster file storage.
 
+## Run a database import from the pg_dump backup into the CockroachDB Serverless cluster
 
-## Run a database import from the pg_dump into the CockroachDB Serverless cluster
+Now that the `pg_dump` backup has been uploaded to the cluster, you can import its contents.
 
-Now that the `pgdump` has been uploaded to the cluster, you can import its contents.
-
-Connect using the `cockroach` client using the `migrate` user:
+Connect using the `cockroach` client as the `migrate` user:
 
 ```bash
 # note: if you have not set the $COCKROACH_URL environment variable
@@ -189,11 +219,49 @@ ERROR: unsupported *tree.SetVar statement: SET statement_timeout = 0
 HINT: To ignore unsupported statements and log them for review post IMPORT, see the options listed in the docs: https://www.cockroachlabs.com/docs/stable/import.html#import-options
 ```
 
-To fix that problem, include the `WITH ignore_unsupported_statements` option:
+To fix that problem, include the `WITH ignore_unsupported_statements` option. You can also use the `log_ignored_statements` option to log ignored statements to cluster file storage.
 
 ```sql
-IMPORT PGDUMP "userfile:///cw-pgdump.sql"; WITH ignore_unsupported_statements;
+IMPORT PGDUMP "userfile:///cw-pgdump.sql" WITH ignore_unsupported_statements, log_ignored_statements='userfile:///cw-pgdump.log';
 ```
+
+The first error that we encounter is about `IMPORT PGDUMP` nots supporting user defined types:
+
+```
+ERROR: IMPORT PGDUMP does not support user defined types; please remove all CREATE TYPE statements and their usages from the dump file
+```
+
+At this time, it user defined types have to be created prior to running the `IMPORT` command. 
+
+There is one user defined type in the backup, so we'll add that manually. Then, exit out of the `cockroach` client.
+
+```sql
+CREATE TYPE public.system_log_severity AS ENUM (
+    'info',
+    'warning',
+    'error'
+);
+\q
+```
+
+Next, we'll comment out the `CREATE TYPE` statment in the backup file and re-upload. Then, re-connect using `cockroach sql`.
+
+```bash
+# First edit the file, using the --- at the start of the
+# lines that include the CREATE TYPE statement
+# then delete and upload the file
+cockroach userfile delete cw-pgdump.sql
+cockroach userfile upload cw-pgdump.sql
+cockroach sql
+```
+
+Re-connect with `cockroach sql` and try the import again:
+
+```sql
+IMPORT PGDUMP "userfile:///cw-pgdump.sql" WITH ignore_unsupported_statements, log_ignored_statements='userfile:///cw-pgdump.log';
+```
+
+You should see output that the import job completed successfully.
 
 Success! The database is successfully imported. To take a look around you can run a few SQL commands:
 
@@ -208,855 +276,77 @@ SHOW TABLES;
 SHOW CREATE TABLE daily;
 ```
 
----
----
----
----
----
 
-
-CockroachDB Serverless provides a wide range of data migration options, of which a subset is available in the CockroachDB Serverless free tier.
-
-To explore this subset of options, you can use user-specific cluster file storage, called `userfiles`, to do import, backup and restore.
-
-In these labs, you will learn how to manage `userfiles` and leverage `userfiles` to import data from CSV files, Postgresql and MySQL. You will also learn how to backup and restore an entire cluster, a database and a single table.
-
-## Labs Prerequisites
-
-1. Connection URL to the Cockroach Cloud Free Tier
-
-2. You also need:
-
-    - a modern web browser,
-    - [Cockroach SQL client](https://www.cockroachlabs.com/docs/stable/install-cockroachdb-linux)
-
-3. Optional:
-
-    - [Docker Desktop](https://www.docker.com/products/docker-desktop). You will use Docker Desktop to create Postgresql and MySQL database dumps. If you prefer, you can use existing database dumps provided in the workshops data directory.
-
-## Lab 1 - Managing Cluster File Storage
-
-Before getting started with the import, backup and restore labs, you will want to be familiar with interacting with the user-specific cluster storage called `userfiles`. Cockroach Cloud supports the following commands for managing cluster `userfiles`:
-
-- `cockroach userfile upload`
-- `cockroach userfile list`
-- `cockroach userfile get`
-- `cockroach userfile delete`
-
-To try out these commands, download the `employees.csv` file from the `data/import-backup-restore` directory. You will use this `userfile` in the next lab when you explore importing data from CSV.
-
-After downloading the `employees.csv` file to your local machine using your browser or a command-line utility such as `wget`, upload it into your cluster with the following command. When working with `userfiles`, you can exclude the database name in the `--url` parameter since `userfiles` are always stored in the `defaultdb` database.
-
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
+Next, you can inspect the log file created for unsupported statements. Exit the `cockroach` client, list usefiles and then download the log file.
 
 ```bash
-# upload data file to cluster
-$ cockroach userfile upload employees.csv --url "postgresql://<yourname>:<password>@[...]"
-successfully uploaded to userfile://defaultdb.public.userfiles_jon/
+# first exit the cockroach client using \q
+cockroach userfile list
+cockroach userfile get [USERFILE PATH]
 ```
 
-Note that the username that you used to connect to your cluster will be included in the full `userfile` path. In this case, the username used to upload the file is `jon` which is contained in the path. In some of the examples below, `$user` will be used in the path to indicate the username that you used to connect to your cluster. You may need to replace this with your actual username.
-
-To view all of the userfiles that exist in your cluster, run the following command:
-
-```bash
-# list data files in cluster
-$ cockroach userfile list --url "postgresql://<yourname>:<password>@[...]"
-employees.csv
-```
-
-To download the `userfile`, change to a directory where the file does not exist and run the following command:
-
-```bash
-# change directories
-$ cd ~
-$ cockroach userfile get employees.csv --url "postgresql://<yourname>:<password>@[...]"
-downloaded employees.csv to employees.csv (4.4 KiB)
-```
-
-Finally, to delete the `userfile` run the following command:
-
-```bash
-# delete user file
-$ cockroach userfile delete employees.csv --url "postgresql://<yourname>:<password>@[...]"
-successfully deleted employees.csv
-```
-
-These are all of the commands that you will need to know to leverage `userfiles` in the following labs.
-
-## Lab 2 - Import Data from CSV
-
-In this lab, we will look at how to import data from comma-separated value (CSV) files. To accomplish this, you will import two existing CSV files that has been provided for this workshop. The `employee.csv` file contains records for 100 employees, including their employee number, birth date, first name, last name, gender and hire date. The `rooms.csv` file contains records for conference rooms, including the room number, name and capacity.
-
-First, download the `employees.csv` and `rooms.csv` files from the `data/import-backup-restore` directory.
-
-Next, upload the CSV files to your Cockroach Cloud cluster as `userfiles`.
-
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
-
-```bash
-# upload data files to cluster
-$ cockroach userfile upload employees.csv --url "postgresql://<yourname>:<password>@[...]"
-$ cockroach userfile upload rooms.csv --url "postgresql://<yourname>:<password>@[...]"
-
-# verify that files have been uploaded
-$ cockroach userfile list --url "postgresql://<yourname>:<password>@[...]"
-```
-
-After the files have been uploaded, connect to your cluster using the command-line `cockroach sql` command so that you can import the CSVs into a database table.
-
-```bash
-# connect to the CockroachDB cluster
-$ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
-```
-
-Once you are connected to the cluster via the SQL client, you can create a database for storing the imported tables called `workplace_csv`.
-
-```sql
-> CREATE DATABASE workplace_csv;
-```
-
-Next, switch to the `workplace_csv` database and run the `IMPORT TABLE` command. To import data from the CSV files, the table schema must be defined to match the number of columns in the CSV file.
-
-Make sure to replace `$user` with the username that you are using to connect to your cluster.
-
-```sql
-> USE workplace_csv;
-
-> IMPORT TABLE employees_csv (
-    emp_no INT PRIMARY KEY,
-    birth_date DATE NOT NULL,
-    first_name STRING NOT NULL,
-    last_name STRING NOT NULL,
-    gender STRING NOT NULL,
-    hire_date DATE NOT NULL
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_$user/employees.csv");
-
-        job_id       |  status   | fraction_completed | rows | index_entries | bytes
----------------------+-----------+--------------------+------+---------------+--------
-  682252763719575313 | succeeded |                  1 |  100 |             0 |  4275
-(1 row)
-
-Time: 388ms
-
-> IMPORT TABLE rooms_csv (
-    room_no INT PRIMARY KEY,
-    name STRING NOT NULL,
-    capacity INT NOT NULL
-  ) CSV DATA ("userfile://defaultdb.public.userfiles_$user/rooms.csv");
-
-        job_id       |  status   | fraction_completed | rows | index_entries | bytes
----------------------+-----------+--------------------+------+---------------+--------
-  682252774955460369 | succeeded |                  1 |    6 |             0 |   148
-(1 row)
-
-Time: 732ms
-```
-
-Once the import is completed, you can view the imported table and select a handful of rows from the table to verify that the data was successfully imported.
-
-```sql
-> SHOW TABLES;
-
-> SELECT * FROM employees_csv limit 10;
-> SELECT * FROM rooms_csv limit 10;
-```
-
-Congratulations! You have just imported CSV files into your Cockroach Cloud cluster!
-
-## Lab 3 - Import Data from Postgresql
-
-Often we want to import data that is exported directly from a database system. Cockroach Cloud supports importing data from a number of different databases and file types.
-
-In this lab, we'll demonstrate how data can be imported from a Postgresql data dump.
-
-Note: if you would like to skip creating a docker container and doing the dump in Postgresql, you can skip this section and use the full database dump `workplace_pg.sql` and the single table dump `employees_pg.sql` found in the `data/import-backup-restore` folder.
-
-Let's start a docker instance and copy the employee CSV data to it.
-
-```bash
-# Run a postgresql container
-$ docker run --name import-postgres -e POSTGRES_PASSWORD=test1234 -d postgres
-
-# Copy the CSV files to the container
-$ docker cp employees.csv import-postgres:/employees.csv
-$ docker cp rooms.csv import-postgres:/rooms.csv
-```
-
-Next, connect to the running docker container.
-
-```bash
-# Get shell in container
-$ docker exec -it import-postgres /bin/bash
-```
-
-You should now see a command prompt that is in the PostgreSQL container. In the workshops, the `$$` prompt will be used to denote a command prompt in a docker container.
-
-Use the `psql` command to connect to the dataase.
-
-```bash
-$$ psql -U postgres
-```
-
-Next, import the CSV data into a new PostgreSQL database and table. This will provide us with data that we can use for a Postgresql data dump.
-
-```sql
--- Create the database
-PGSQL> CREATE DATABASE workplace_pg;
-
-CREATE DATABASE
-
--- Connnect to the database
-PGSQL> \c workplace_pg
-
-You are now connected to database "workplace_pg" as user "postgres".
-
--- Create the employees table
-PGSQL> CREATE TABLE employees_pg (
-    emp_no INT PRIMARY KEY,
-    birth_date DATE NOT NULL,
-    first_name VARCHAR NOT NULL,
-    last_name VARCHAR NOT NULL,
-    gender VARCHAR NOT NULL,
-    hire_date DATE NOT NULL
-);
-
-CREATE TABLE
-
--- Import the CSV
-PGSQL> COPY employees_pg FROM '/employees.csv' WITH (FORMAT csv);
-
-COPY 100
-
--- Create the rooms table
-PGSQL> CREATE TABLE rooms_pg (
-    room_no INT PRIMARY KEY,
-    name VARCHAR NOT NULL,
-    capacity INT NOT NULL
-);
-
-CREATE TABLE
-
--- Import the CSV
-PGSQL> COPY rooms_pg FROM '/rooms.csv' WITH (FORMAT csv);
-
-COPY 6
-
--- Show tables
-PGSQL> \d
-
-           List of relations
- Schema |   Name    | Type  |  Owner
---------+-----------+-------+----------
- public | employees_pg | table | postgres
- public | rooms_pg | table | postgres
-(2 rows)
-
--- Select 10 rows to ensure the data is populated
-PGSQL> SELECT * FROM employees_pg LIMIT 10;
-PGSQL> SELECT * FROM rooms_pg LIMIT 10;
-```
-
-Exit out of Postgresql.
-
-```sql
-PGSQL> \q
-```
-
-At the shell prompt in the PostgreSQL container, dump the full database using `pg_dump`.
-
-```bash
-$$ pg_dump -U postgres workplace_pg > /workplace_pg.sql
-```
-
-In addition to the full database, we'll also dump a database table so that we can demonstrate importing both the full database and an individual table.
-
-```bash
-$$ pg_dump -U postgres -t employees_pg workplace_pg > /employees_pg.sql
-```
-
-Exit out of the Postgresql container and copy the files that `pg_dump` created from the docker container to your computer.
-
-```bash
-$$ exit
-$ docker cp import-postgres:/workplace_pg.sql .
-$ docker cp import-postgres:/employees_pg.sql .
-```
-
-Using the `cockroach userfile upload` command, upload the dumps to your cluster.
-
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
-
-```bash
-# upload pg_dump
-$ cockroach userfile upload workplace_pg.sql --url "postgresql://<yourname>:<password>@[...]"
-$ cockroach userfile upload employees_pg.sql --url "postgresql://<yourname>:<password>@[...]"
-```
-
-Next, verify that the files have been successfully uploaded.
-
-```bash
-# verify that file has been uploaded
-$ cockroach userfile list --url "postgresql://<yourname>:<password>@[...]"
-```
-
-Connect to your cluster to perform the import.
-
-```bash
-# now connect to the CockroachDB cluster
-$ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
-```
-
-To import the `workplace` database, including its tables and data, we must first create the database.
-
-```sql
-> CREATE DATABASE workplace_pg;
-
-CREATE DATABASE
-
-Time: 86ms
-
-> USE workplace_pg;
-
-SET
-
-Time: 56ms
-
-> IMPORT PGDUMP "userfile://defaultdb.public.userfiles_$user/workplace_pg.sql" WITH ignore_unsupported_statements;
-
-        job_id       |  status   | fraction_completed | rows | index_entries | bytes
----------------------+-----------+--------------------+------+---------------+--------
-  682255554362582801 | succeeded |                  1 |  106 |             0 |  4423
-(1 row)
-
-Time: 750ms
-
-> SHOW TABLES;
-
-  schema_name |  table_name   | type  | owner | estimated_row_count | locality
---------------+---------------+-------+-------+---------------------+-----------
-  public      | employees_pg  | table | jon   |                 100 | NULL
-  public      | rooms_pg      | table | jon   |                 100 | NULL
-(2 rows)
-
-> SELECT * FROM employees_pg limit 10;
-
-  emp_no | birth_date | first_name | last_name | gender | hire_date
----------+------------+------------+-----------+--------+-------------
-   10001 | 1953-09-02 | Georgi     | Facello   | M      | 1986-06-26
-   10002 | 1964-06-02 | Bezalel    | Simmel    | F      | 1985-11-21
-   10003 | 1959-12-03 | Parto      | Bamford   | M      | 1986-08-28
-   10004 | 1954-05-01 | Chirstian  | Koblick   | M      | 1986-12-01
-   10005 | 1955-01-21 | Kyoichi    | Maliniak  | M      | 1989-09-12
-   10006 | 1953-04-20 | Anneke     | Preusig   | F      | 1989-06-02
-   10007 | 1957-05-23 | Tzvetan    | Zielinski | F      | 1989-02-10
-   10008 | 1958-02-19 | Saniya     | Kalloufi  | M      | 1994-09-15
-   10009 | 1952-04-19 | Sumant     | Peac      | F      | 1985-02-18
-   10010 | 1963-06-01 | Duangkaew  | Piveteau  | F      | 1989-08-24
-(10 rows)
-
-> SELECT * FROM rooms_pg;
-
-  room_no |   name   | capacity
-----------+----------+-----------
-        1 | Austin   |       25
-        2 | Phoenix  |       15
-        3 | Portland |       10
-        4 | Boston   |       30
-        5 | Seattle  |       12
-        6 | London   |       18
-(6 rows)
-
-Time: 70ms
-```
-
-Great work! You have successfully imported the full database.
-
-Next, let's look at importing just a single table.
-
-Drop the `employees_pg` table and then import from the single table dump:
-
-```sql
-> DROP TABLE employees_pg;
-
-DROP TABLE
-
-Time: 314ms
-
-> IMPORT TABLE employees_pg FROM PGDUMP "userfile://defaultdb.public.userfiles_$user/employees_pg.sql" WITH ignore_unsupported_statements;
-
-        job_id       |  status   | fraction_completed | rows | index_entries | bytes
----------------------+-----------+--------------------+------+---------------+--------
-  680265700589741841 | succeeded |                  1 |  100 |             0 |  4175
-(1 row)
-
-Time: 520ms
-
-> SHOW TABLES;
-
-  schema_name |  table_name   | type  | owner | estimated_row_count | locality
---------------+---------------+-------+-------+---------------------+-----------
-  public      | employees_pg  | table | jon   |                 100 | NULL
-  public      | rooms_pg      | table | jon   |                 100 | NULL
-(2 rows)
-
-> SELECT * FROM employees_pg limit 10;
-
-  emp_no | birth_date | first_name | last_name | gender | hire_date
----------+------------+------------+-----------+--------+-------------
-   10001 | 1953-09-02 | Georgi     | Facello   | M      | 1986-06-26
-   10002 | 1964-06-02 | Bezalel    | Simmel    | F      | 1985-11-21
-   10003 | 1959-12-03 | Parto      | Bamford   | M      | 1986-08-28
-   10004 | 1954-05-01 | Chirstian  | Koblick   | M      | 1986-12-01
-   10005 | 1955-01-21 | Kyoichi    | Maliniak  | M      | 1989-09-12
-   10006 | 1953-04-20 | Anneke     | Preusig   | F      | 1989-06-02
-   10007 | 1957-05-23 | Tzvetan    | Zielinski | F      | 1989-02-10
-   10008 | 1958-02-19 | Saniya     | Kalloufi  | M      | 1994-09-15
-   10009 | 1952-04-19 | Sumant     | Peac      | F      | 1985-02-18
-   10010 | 1963-06-01 | Duangkaew  | Piveteau  | F      | 1989-08-24
-(10 rows)
-```
-
-Nice work! You were able to re-import just the `employees_pg` table.
-
-## Lab 4 - Import Data from MySQL
-
-Importing data from MySQL is very similar to importing data from Postgresql.
-
-In this lab, we'll demonstrate how data can be imported from a MySQL data dump.
-
-Note: if you would like to skip creating a docker container and doing the dump in MySQL, you can skip this section and use the full database dump `workplace_mysql.sql` and the single table dump `employees_mysql.sql` found in the `data/import-backup-restore` folder.
-
-Let's start a docker instance and copy the CSV data to it.
-
-```bash
-# Run a mysql container
-$ docker run --name import-mysql -e MYSQL_ROOT_PASSWORD=test1234 -d mysql --secure-file-priv=/
-
-# Copy the CSV files to the container
-$ docker cp employees.csv import-mysql:/employees.csv
-$ docker cp rooms.csv import-mysql:/rooms.csv
-```
-
-and connect to it:
-
-```bash
-# Get shell in container
-$ docker exec -it import-mysql /bin/bash
-```
-
-You should now see a command prompt that is in the MySQL container. To connect to the database. Like in the previous lab, the `$$` prompt will indicate that the command is running in the docker container.
-
-```bash
-$$ mysql -u root -ptest1234
-```
-
-Next, import the CSV data into a new MySQL database and table:
-
-```sql
--- Create the database
-MYSQL> CREATE DATABASE workplace_mysql;
-Query OK, 1 row affected (0.00 sec)
-
--- Connnect to the database
-MYSQL> USE workplace_mysql
-Database changed
-
--- Create the employees table
-MYSQL> CREATE TABLE employees_mysql (
-    emp_no INT PRIMARY KEY,
-    birth_date DATE NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    gender VARCHAR(100) NOT NULL,
-    hire_date DATE NOT NULL
-);
-Query OK, 0 rows affected (0.02 sec)
-
--- Import the CSV
-MYSQL> LOAD DATA INFILE '/employees.csv' INTO TABLE employees_mysql FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\n';
-Query OK, 100 rows affected (0.01 sec)
-Records: 100  Deleted: 0  Skipped: 0  Warnings: 0
-
--- Create the rooms table
-MYSQL> CREATE TABLE rooms_mysql (
-    room_no INT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    capacity INT NOT NULL
-);
-Query OK, 0 rows affected (0.02 sec)
-
--- Import the CSV
-MYSQL> LOAD DATA INFILE '/rooms.csv' INTO TABLE rooms_mysql FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\n';
-Query OK, 100 rows affected (0.01 sec)
-Query OK, 6 rows affected (0.00 sec)
-Records: 6  Deleted: 0  Skipped: 0  Warnings: 0
-
--- Show tables
-MYSQL> SHOW TABLES;
-+---------------------------+
-| Tables_in_workplace_mysql |
-+---------------------------+
-| employees_mysql           |
-| rooms_mysql               |
-+---------------------------+
-2 rows in set (0.00 sec)
-
--- Select 10 rows to ensure the data is populated
-MYSQL> SELECT * FROM employees_mysql LIMIT 10;
-MYSQL> SELECT * FROM rooms_mysql LIMIT 10;
-```
-
-Exit out of MySQL.
-
-```sql
-MYSQL> exit;
-```
-
-At the shell prompt in the MySQL docker container, dump the full database using `mysql_dump`.
-
-```bash
-$$ mysqldump -u root -ptest1234 workplace_mysql > workplace_mysql.sql
-```
-
-In addition to the full database, we'll also dump the database table so that we can demonstrate importing either the full database or an individual table.
-
-```bash
-$$ mysqldump -u root -ptest1234 workplace_mysql employees_mysql > employees_mysql.sql
-```
-
-Exit out of the MySQL container and copy the dumps from the docker container to your computer.
-
-```bash
-$$ exit
-$ docker cp import-mysql:/workplace_mysql.sql .
-$ docker cp import-mysql:/employees_mysql.sql .
-```
-
-Using the `cockroach userfile upload` command, upload the dumps to your cluster.
-
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
-
-```bash
-# upload mysql dump
-$ cockroach userfile upload workplace_mysql.sql --url "postgresql://<yourname>:<password>@[...]"
-$ cockroach userfile upload employees_mysql.sql --url "postgresql://<yourname>:<password>@[...]"
-```
-
-Next, verify that the files have been successfully uploaded.
-
-```bash
-# verify that file has been uploaded
-$ cockroach userfile list --url "postgresql://<yourname>:<password>@[...]"
-```
-
-Connect to your cluster to perform the import.
-
-```bash
-# now connect to the CockroachDB cluster
-$ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
-```
-
-To import the `workplace_mysql` database, we must first create the database.
-
-```sql
-> CREATE DATABASE workplace_mysql;
-
-CREATE DATABASE
-
-Time: 86ms
-
-> USE workplace_mysql;
-
-SET
-
-Time: 56ms
-
-> IMPORT MYSQLDUMP "userfile://defaultdb.public.userfiles_$user/workplace_mysql.sql";
-
-        job_id       |  status   | fraction_completed | rows | index_entries | bytes
----------------------+-----------+--------------------+------+---------------+--------
-  682263483122460433 | succeeded |                  1 |  106 |             0 |  4423
-(1 row)
-
-Time: 743ms
-
-> SHOW TABLES;
-
-  schema_name |   table_name    | type  | owner | estimated_row_count | locality
---------------+-----------------+-------+-------+---------------------+-----------
-  public      | employees_mysql | table | jon   |                   0 | NULL
-  public      | rooms_mysql     | table | jon   |                   0 | NULL
-(2 rows)
-
-> SELECT * FROM employees_mysql limit 10;
-
-  emp_no | birth_date | first_name | last_name | gender | hire_date
----------+------------+------------+-----------+--------+-------------
-   10001 | 1953-09-02 | Georgi     | Facello   | M      | 1986-06-26
-   10002 | 1964-06-02 | Bezalel    | Simmel    | F      | 1985-11-21
-   10003 | 1959-12-03 | Parto      | Bamford   | M      | 1986-08-28
-   10004 | 1954-05-01 | Chirstian  | Koblick   | M      | 1986-12-01
-   10005 | 1955-01-21 | Kyoichi    | Maliniak  | M      | 1989-09-12
-   10006 | 1953-04-20 | Anneke     | Preusig   | F      | 1989-06-02
-   10007 | 1957-05-23 | Tzvetan    | Zielinski | F      | 1989-02-10
-   10008 | 1958-02-19 | Saniya     | Kalloufi  | M      | 1994-09-15
-   10009 | 1952-04-19 | Sumant     | Peac      | F      | 1985-02-18
-   10010 | 1963-06-01 | Duangkaew  | Piveteau  | F      | 1989-08-24
-(10 rows)
-
-> SELECT * FROM rooms_mysql;
-
-  room_no |   name   | capacity
-----------+----------+-----------
-        1 | Austin   |       25
-        2 | Phoenix  |       15
-        3 | Portland |       10
-        4 | Boston   |       30
-        5 | Seattle  |       12
-        6 | London   |       18
-(6 rows)
-
-Time: 70ms
-```
-
-Next, let's look at importing just a single table.
-
-Drop the `employees_mysql` table and then import from the single table dump.
-
-```sql
-> DROP TABLE employees_mysql;
-
-DROP TABLE
-
-Time: 314ms
-
-> IMPORT TABLE employees_mysql FROM MYSQLDUMP "userfile://defaultdb.public.userfiles_$user/employees_mysql.sql";
-
-        job_id       |  status   | fraction_completed | rows | index_entries | bytes
----------------------+-----------+--------------------+------+---------------+--------
-  682264036549469969 | succeeded |                  1 |  100 |             0 |  4275
-(1 row)
-
-Time: 828ms
-
-> SHOW TABLES;
-
-  schema_name |  table_name   | type  | owner | estimated_row_count | locality
---------------+---------------+-------+-------+---------------------+-----------
-  public      | employees_mysql  | table | jon   |                 100 | NULL
-  public      | rooms_mysql      | table | jon   |                 100 | NULL
-(2 rows)
-
-> SELECT * FROM employees_mysql limit 10;
-
-  emp_no | birth_date | first_name | last_name | gender | hire_date
----------+------------+------------+-----------+--------+-------------
-   10001 | 1953-09-02 | Georgi     | Facello   | M      | 1986-06-26
-   10002 | 1964-06-02 | Bezalel    | Simmel    | F      | 1985-11-21
-   10003 | 1959-12-03 | Parto      | Bamford   | M      | 1986-08-28
-   10004 | 1954-05-01 | Chirstian  | Koblick   | M      | 1986-12-01
-   10005 | 1955-01-21 | Kyoichi    | Maliniak  | M      | 1989-09-12
-   10006 | 1953-04-20 | Anneke     | Preusig   | F      | 1989-06-02
-   10007 | 1957-05-23 | Tzvetan    | Zielinski | F      | 1989-02-10
-   10008 | 1958-02-19 | Saniya     | Kalloufi  | M      | 1994-09-15
-   10009 | 1952-04-19 | Sumant     | Peac      | F      | 1985-02-18
-   10010 | 1963-06-01 | Duangkaew  | Piveteau  | F      | 1989-08-24
-(10 rows)
-```
-
-Nice work! We were able to re-import just the `employees_mysql` table.
-
-## Lab 5 - Backup and Restore Data on a Single Cluster
-
-Cockroach Cloud Free Tier automatically backs up all clusters but those backups are not currently available via the cluster console. However, you can create manual database and table backups to `userfiles` that can be used to restore database and table data.
-
-Although Cockroach Cloud Free Tier supports manual full cluster backups to `userfiles`, those imports can only be imported into CockroachDB self-hosted.
-
-To learn more about `userfiles`, review Lab 1 of this workshops that focuses on how to manage `userfiles`.
-
-To do a full cluster backup, first login to your cluster.
-
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
-
-```bash
-# connect to the CockroachDB cluster
-$ cockroach sql --url "postgresql://<yourname>:<password>@[...]"
-```
-
-Once you are connected to your cluster, issue the following SQL which will create a backup called `full-backup` in `userfiles`.
-
-```sql
-> BACKUP INTO 'userfile://defaultdb.public.userfiles_$user/full-backup' AS OF  SYSTEM TIME '-10s';
-
-        job_id       |  status   | fraction_completed | rows  | index_entries |  bytes
----------------------+-----------+--------------------+-------+---------------+-----------
-  682009176526923537 | succeeded |                  1 | 11204 |          1055 | 19883414
-(1 row)
-
-Time: 24.588s
-```
-
-On your local machine, you can use the following command to download the full backup.
-
-```bash
-cockroach userfile get full-backup --url "postgresql://<yourname>:<password>@[...]"
-```
-
-To backup a single database rather than the full cluster, you can re-connect to your cluster and execute the following command.
-
-```sql
-> BACKUP DATABASE workplace_csv INTO 'userfile://defaultdb.public.userfiles_jon/workplace-backup' AS OF  SYSTEM TIME '-10s';
-        job_id       |  status   | fraction_completed | rows | index_entries | bytes
----------------------+-----------+--------------------+------+---------------+--------
-  682009822370211601 | succeeded |                  1 |  200 |             0 |  8350
-(1 row)
-
-Time: 12.407s
-```
-
-Additionally, you can backup a single table using the following command.
-
-```sql
-> BACKUP workplace_csv.employees_csv INTO 'userfile://defaultdb.public.userfiles_jon/employees-backup' AS OF  SYSTEM TIME '-10s';
-        job_id       |  status   | fraction_completed | rows | index_entries | bytes
----------------------+-----------+--------------------+------+---------------+--------
-  682009558332090129 | succeeded |                  1 |  100 |             0 |  4175
-(1 row)
-
-Time: 11.902s
-```
-
-## Lab 5 - Restoring Data to a Running Cluster
-
-In this lab, you will restore previously backed-up data to a running cluster. Cockroach Cloud Free Tier currently supports restoring data from both database and table backups.
-
-First, identify the backup you would like to restore. In Lab 4, you used the `AS OF SYSTEM TIME` option. This creates a backup with a specific timestamp. To find the backup, get a list of `userfiles`.
-
-> Note: instead of using the --url flag every time you issue a command, you can define the COCKROACH_URL environment variable. The value of that variable will be used if the --url flag is not provided in the command.
-
-```bash
-$ cockroach userfile list --url "postgresql://<yourname>:<password>@[...]"
-
-employees-backup/2021/08/05-223949.67/BACKUP-CHECKPOINT-682009558332090129-CHECKSUM
-employees-backup/2021/08/05-223949.67/BACKUP-CHECKPOINT-CHECKSUM
-employees-backup/2021/08/05-223949.67/BACKUP-STATISTICS
-employees-backup/2021/08/05-223949.67/BACKUP_MANIFEST
-employees-backup/2021/08/05-223949.67/BACKUP_MANIFEST-CHECKSUM
-employees-backup/2021/08/05-223949.67/data/682009573653030673.sst
-employees-backup/2021/08/09-175151.88/BACKUP-CHECKPOINT-683085404549359377-CHECKSUM
-employees-backup/2021/08/09-175151.88/BACKUP-CHECKPOINT-CHECKSUM
-employees-backup/2021/08/09-175151.88/BACKUP-STATISTICS
-employees-backup/2021/08/09-175151.88/BACKUP_MANIFEST
-employees-backup/2021/08/09-175151.88/BACKUP_MANIFEST-CHECKSUM
-employees-backup/2021/08/09-175151.88/data/683085420552431377.sst
-full-backup/2021/08/09-175623.91/BACKUP-CHECKPOINT
-full-backup/2021/08/09-175623.91/BACKUP-CHECKPOINT-683086295814416145-CHECKSUM
-full-backup/2021/08/09-175623.91/BACKUP-CHECKPOINT-CHECKSUM
-full-backup/2021/08/09-175623.91/data/683086311490823953.sst
-full-backup/2021/08/09-175623.91/data/683086311490922257.sst
-full-backup/2021/08/09-175623.91/data/683086311491446545.sst
-full-backup/2021/08/09-175623.91/data/683086311492462353.sst
-full-backup/2021/08/09-175623.91/data/683086311500097297.sst
-full-backup/2021/08/09-175623.91/data/683086328509802257.sst
-full-backup/2021/08/09-175623.91/data/683086328511309585.sst
-full-backup/2021/08/09-175623.91/data/683086328512685841.sst
-full-backup/2021/08/09-175623.91/data/683086328531199761.sst
-full-backup/2021/08/09-175623.91/data/683086328832829201.sst
-full-backup/2021/08/09-175623.91/data/683086336381724433.sst
-full-backup/2021/08/09-175623.91/data/683086341627225873.sst
-full-backup/2021/08/09-175623.91/data/683086341926332177.sst
-full-backup/2021/08/09-175623.91/data/683086343249110801.sst
-full-backup/2021/08/09-175623.91/data/683086343250126609.sst
-full-backup/2021/08/09-175623.91/data/683086349465298705.sst
-full-backup/2021/08/09-175623.91/data/683086359236323089.sst
-full-backup/2021/08/09-175623.91/data/683086370109237009.sst
-full-backup/2021/08/09-175623.91/data/683086370109269777.sst
-full-backup/2021/08/09-175623.91/data/683086370109466385.sst
-workplace-backup/2021/08/05-224110.23/BACKUP-CHECKPOINT-682009822370211601-CHECKSUM
-workplace-backup/2021/08/05-224110.23/BACKUP-CHECKPOINT-CHECKSUM
-workplace-backup/2021/08/05-224110.23/BACKUP-STATISTICS
-workplace-backup/2021/08/05-224110.23/BACKUP_MANIFEST
-workplace-backup/2021/08/05-224110.23/BACKUP_MANIFEST-CHECKSUM
-workplace-backup/2021/08/05-224110.23/data/682009837124003601.sst
-workplace-backup/2021/08/05-224110.23/data/682009837124036369.sst
-workplace-backup/2021/08/09-175343.68/BACKUP-CHECKPOINT-683085770857555729-CHECKSUM
-workplace-backup/2021/08/09-175343.68/BACKUP-CHECKPOINT-CHECKSUM
-workplace-backup/2021/08/09-175343.68/BACKUP-STATISTICS
-workplace-backup/2021/08/09-175343.68/BACKUP_MANIFEST
-workplace-backup/2021/08/09-175343.68/BACKUP_MANIFEST-CHECKSUM
-workplace-backup/2021/08/09-175343.68/data/683085785954395921.sst
-workplace-backup/2021/08/09-175343.68/data/683085785954428689.sst
-```
-
-This list shows that I have 2 `employees` table backups, 2 `workplace` database backups and 1 full cluster backup.
-
-Let's start by restoring the `employee` table. Login to your cluster.
-
-```bash
-cockroach sql --url "postgresql://<yourname>:<password>@[...]"
-```
-
-And drop the `employees` table in the `workplace` database.
-
-```sql
-> USE workplace_csv;
-> DROP TABLE employees_csv;
-DROP TABLE
-
-Time: 350ms
-```
-
-Then run the `RESTORE` command on the latest backup.
-
-```sql
-> RESTORE TABLE workplace_csv.employees_csv FROM 'userfile:///employees-backup//2021/08/09-175151.88';
-        job_id       |  status   | fraction_completed | rows | index_entries | bytes
----------------------+-----------+--------------------+------+---------------+--------
-  683091868975376145 | succeeded |                  1 |  100 |             0 |  4275
-(1 row)
-
-Time: 880ms
-```
-
-Nice work! The `employees_csv` table has been successfully restored.
-
-Next, change databases so the `workplace_csv` database is not active and drop the entire `workplace_csv` database. You will also need to disable `sql_safe_updates`.
-
-```sql
-> USE defaultdb;
-SET
-
-Time: 57ms
-
-> SET sql_safe_updates=false;
-SET
-
-Time: 57ms
-
-> DROP DATABASE workplace_csv;
-DROP DATABASE
-
-Time: 438ms
-
-> SET sql_safe_updates=true;
-SET
-
-Time: 59ms
+The log file should look similar to the following. None of the unsupported statements raises concern.
 
 ```
-
-Next, restore the full database.
-
-```sql
-> RESTORE DATABASE workplace_csv FROM 'userfile:///workplace-backup/2021/08/09-175343.68';
-
-        job_id       |  status   | fraction_completed | rows | index_entries | bytes
----------------------+-----------+--------------------+------+---------------+--------
-  683092806126282513 | succeeded |                  1 |  200 |             0 |  8550
-(1 row)
-
-Time: 1.054s
+SET statement_timeout = 0: unsupported by IMPORT
+SET lock_timeout = 0: unsupported by IMPORT
+SET idle_in_transaction_session_timeout = 0: unsupported by IMPORT
+SET client_encoding = 'UTF8': unsupported by IMPORT
+SET standard_conforming_strings = "on": unsupported by IMPORT
+unsupported function call: set_config in stmt: SELECT set_config('search_path', '', false): unsupported by IMPORT
+SET check_function_bodies = false: unsupported by IMPORT
+SET xmloption = content: unsupported by IMPORT
+SET client_min_messages = warning: unsupported by IMPORT
+SET row_security = off: unsupported by IMPORT
 ```
 
-Congratulations! You have just successfully restored a full database backup.
+## What's Next
+
+You have successfully imported a Postgresql database into CockroachDB Serverless.
+
+This workshop has provided a very basic approach to importing data into CockroachDB Serverless.
+
+### Documentation
+
+[Migration Overview](https://www.cockroachlabs.com/docs/v21.1/migration-overview.html) - official migration documentation for CockroachDB 21.1
+
+### Supported formats
+
+The `IMPORT` command supports the following formats:
+
+* Postgresql backup using `pg_dump`
+* MySQL backup using `mysqldump`
+* CSV/TSV
+* Avro
+* ESRI Shapefiles (`.shp`) (using `shp2pgsql`)
+* OpenStreetMap data files (`.pbf`) (using `osm2pgsql`)
+* GeoPackage data files (`.gpkg`) (using `ogr2ogr`)
+* GeoJSON data files (`.geojson`) (using `ogr2ogr`)
+
+### Best practices and optimizations
+
+[Best Practices Docmentation](https://www.cockroachlabs.com/docs/v21.1/import-performance-best-practices.html)
+
+* Split data into multiple files
+* Choose a performant import format
+  * CSV or Delimited data
+  * AVRO
+  * MYSQLDUMP
+  * PGDUMP
+* Provide the table schema inline
+* Import the schema separately from the data
+
+
+### Network file storage
+
+In addition to the cluster file storage described in the workshop, cloud storage can be used if you increase the spend limit and enter a credit card.
+
+[Cloud Storage Documentation](https://www.cockroachlabs.com/docs/v21.1/use-cloud-storage-for-bulk-operations)
+
+Cloud Storage Providers
+* Amazon
+* Azure
+* Google Cloud
+* http
+* NFS/local
+
