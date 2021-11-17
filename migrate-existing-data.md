@@ -7,7 +7,7 @@ Application developers often have existing applications and databases that they 
 This workshop is designed to demonstrate how an application developer can migrate an existing Postgresql database to CockroachDB Serverless in several easy steps.
 
 1. Spin up a new CockroachDB Serverless cluster 
-2. Setup a databasqe user for migration
+2. Setup a database user for migration
 3. Create a `pg_dump` backup of an existing Postgresql database
 4. Upload the `pg_dump` backup to the newly created cluster
 5. Run a database import from the `pg_dump` backup into the new CockroachDB Serverless cluster
@@ -16,7 +16,7 @@ To demonstrate this, we will be using a real production database used to power [
 
 ## Quick Tour of the Database
 
-The database that we are using is a Postgresql database. To make it easier for demonstration purposes, it has been slimmed down to 9 key tables:
+The database that we are using is a Postgresql database. To make it easier for demonstration purposes, it has been slimmed down to 11 key tables:
 
 * `area`: Climbing areas in the United States with a unique id, latitude/longitude, name and a handful of other fields.
 * `daily`: Daily weather forecasts. Each row references a specific `area`, date and a number of weather data points, such as high and low temperatures.
@@ -24,9 +24,11 @@ The database that we are using is a Postgresql database. To make it easier for d
 * `state`: US states.
 * `country`: Countries. Even though ClimbingWeather.com currently only has climbing areas in the United States, the table is used in the weather API.
 * `system_setting`: A table of key-value combinations for system settings.
-* `area_zip_code_distance`: A pre-calculated table of zip code distances for searching climbing areas by US zip code.
 * `clim81_station`: Weather observation stations
 * `clim81_station_monthly`: Monthly averages from weather observation stations.
+* `daily_archive`: Archived daily forecasts
+* `zip_code`: US zip codes, including latitude and longitude
+* `area_zip_code_distance`: A pre-calculated table of zip code distances for searching climbing areas by US zip code.
 
 These tables are the bare minimum for running the ClimbingWeather.com API that powers the websites and mobile apps.
 
@@ -89,6 +91,9 @@ SHOW USERS;
 
 -- grant access to cw
 GRANT ALL ON DATABASE cw TO migrate;
+
+-- grant ability to upload userfile
+GRANT CREATE ON DATABASE defaultdb TO migrate;
 
 -- verify grants
 SHOW GRANTS ON DATABASE cw;
@@ -300,6 +305,41 @@ SET client_min_messages = warning: unsupported by IMPORT
 SET row_security = off: unsupported by IMPORT
 ```
 
+## Google Cloud Run Bonus (time permitting)
+
+This section is planned for the live stream on Nov 17, 2021.
+
+Because the current iteration of ClimbingWeather.com is using MySQL, it wasn't easy to move it to CockroachDB since the database drivers would need to be swapped out. Instead, I created a light-weight REST API using Golang, pgx, Gin and Google Cloud Run.
+
+This application uses one environment variable and a mounted file to setup the database connection:
+
+* `DB_URL`: this is the connection string used by `pgx` to connect to either Postgresql or CockroachDB Serverless.
+* `CW_DB_CRT`: this is the CA certificate that is mounted to `/certs`
+
+These are stored as secrets in Google Cloud Platform and passed into the Google Cloud run instance.
+
+To run against Postgresql, I simply update the `DB_URL` environment variable to the Postgresl connection string, something like:
+
+`user=cwapp password=XXXXXXX database=cw host=/cloudsql/api-project-XXXX:us-central1:cw-pg-dev`
+
+To run against my CockroachDB Serverless cluster, I update the `DB_URL` environment to something similar to this:
+
+`postgresql://migrate:XXXXX@free-tier.gcp-us-central1.cockroachlabs.cloud:26257/cw?sslmode=verify-full&sslrootcert=/certs/CW_CRDB_CRT&options=--cluster%3Dcw-test-XXXX`
+
+The connection string has a reference to the CA certificate path `/certs/CW_CRDB_CRT`.
+
+To test this, we insert a new record into the area table:
+
+```sql
+INSERT INTO area (name, latitude, longitude) values ('Squamish', 49.7016, -123.1558);
+```
+
+When running against Postgresql, the API path `/area/3/forecast` returns a result but when run against the new Squamish path `/area/1116/forecast` it fails since the area does not exist.
+
+When running against CockroachDB Serverless, both API paths return valid results.
+
+This sample REST API application demonstrates how easy it is to switch between Postgresql and CockroachDB Serverless with only a configuration change.
+
 ## What's Next
 
 You have successfully imported a Postgresql database into CockroachDB Serverless.
@@ -308,7 +348,7 @@ This workshop has provided a very basic approach to importing data into Cockroac
 
 ### Documentation
 
-[Migration Overview](https://www.cockroachlabs.com/docs/v21.1/migration-overview.html) - official migration documentation for CockroachDB 21.1
+[Migration Overview (v21.2)](https://www.cockroachlabs.com/docs/v21.2/migration-overview.html) - official migration documentation for CockroachDB 21.2
 
 ### Supported formats
 
@@ -327,15 +367,14 @@ The `IMPORT` command supports the following formats:
 
 [Best Practices Docmentation](https://www.cockroachlabs.com/docs/v21.1/import-performance-best-practices.html)
 
+* Import the schema separately from the data
 * Split data into multiple files
+* Provide the table schema inline
 * Choose a performant import format
   * CSV or Delimited data
   * AVRO
   * MYSQLDUMP
   * PGDUMP
-* Provide the table schema inline
-* Import the schema separately from the data
-
 
 ### Network file storage
 
