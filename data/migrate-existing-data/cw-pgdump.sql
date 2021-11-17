@@ -20,11 +20,11 @@ SET row_security = off;
 -- Name: system_log_severity; Type: TYPE; Schema: public; Owner: postgres
 --
 
----CREATE TYPE public.system_log_severity AS ENUM (
----    'info',
----    'warning',
----    'error'
----);
+CREATE TYPE public.system_log_severity AS ENUM (
+    'info',
+    'warning',
+    'error'
+);
 
 
 ALTER TYPE public.system_log_severity OWNER TO postgres;
