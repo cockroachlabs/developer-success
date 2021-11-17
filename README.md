@@ -7,6 +7,7 @@
 - [JSON Optimization](JSON-optimization.md)
 - [Topology Patterns](topology-patterns.md)
 - [Import, Backup, and Restore](import-backup-restore.md)
+- [Migrate Existing Data](migrate-existing-data.md)
 - [Practical Python](practical-python.md)
 - [Query Optimization](query-optimization.md)
 - [Node.js REST API](nodejs-rest.md)

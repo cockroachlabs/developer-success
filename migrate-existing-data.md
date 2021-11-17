@@ -318,7 +318,7 @@ This application uses one environment variable and a mounted file to setup the d
 
 These are stored as secrets in Google Cloud Platform and passed into the Google Cloud run instance.
 
-To run against Postgresql, I simply update the `DB_URL` environment variable to the Postgresl connection string, something like:
+To run against Postgresql, I simply update the `DB_URL` environment variable to the Postgresl connection string, something similar to:
 
 `user=cwapp password=XXXXXXX database=cw host=/cloudsql/api-project-XXXX:us-central1:cw-pg-dev`
 
