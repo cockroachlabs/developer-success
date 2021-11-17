@@ -309,7 +309,7 @@ SET row_security = off: unsupported by IMPORT
 
 This section is planned for the live stream on Nov 17, 2021.
 
-Because the current iteration of ClimbingWeather.com is using MySQL, it wasn't easy to move it to CockroachDB since the database drivers would need to be swapped out. Instead, I created a light-weight REST API using Golang, pgx, Gin and Google Cloud Run.
+Because the current iteration of ClimbingWeather.com is using MySQL, it wasn't easy to move it to CockroachDB since the database drivers would need to be swapped out. Instead, I created a light-weight REST API using [Golang](https://golang.org/), [pgx](https://github.com/jackc/pgx), [Gin](https://github.com/gin-gonic/gin) and [Google Cloud Run](https://cloud.google.com/run).
 
 This application uses one environment variable and a mounted file to setup the database connection:
 
